@@ -1,0 +1,12 @@
+build
+*.pyc
+depends/tmp-*
+depends/class_public*
+depends/class-*.tar.gz
+pyclass/binding.c
+build/
+.cache/
+*.egg-info/
+dist/
+build.log
+**.so
