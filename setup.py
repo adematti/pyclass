@@ -116,8 +116,8 @@ class custom_sdist(sdist):
         from six.moves.urllib import request
 
         # download CLASS
-        tarball_link = 'https://github.com/lesgourg/class_public/archive/v%s.tar.gz' %CLASS_VERSION
-        tarball_local = os.path.join('depends', 'class-v%s.tar.gz' %CLASS_VERSION)
+        tarball_link = 'https://github.com/adematti/class_public/archive/v%s.tar.gz' % CLASS_VERSION
+        tarball_local = os.path.join('depends', 'class-v%s.tar.gz' % CLASS_VERSION)
         request.urlretrieve(tarball_link, tarball_local)
 
         # run the default
