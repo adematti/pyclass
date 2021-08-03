@@ -24,7 +24,7 @@ $(DEST)/lib/libclass.a: $(SRC)/libclass.a Makefile
 	cp $(SRC)/libclass.a $(DEST)/lib
 	mkdir -p $(DEST)/data
 	cp $(SRC)/*.ini $(SRC)/*.pre $(DEST)/data/
-	rm -rf $(TARBALL) $(UNPACK) $(SRC)
+	#rm -rf $(TARBALL) $(UNPACK) $(SRC)
 
 unzip: $(SRC)/stamp.unzip
 build: $(SRC)/libclass.a

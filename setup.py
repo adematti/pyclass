@@ -143,12 +143,20 @@ def libclass_config():
     return ('class', {})
 
 
+def find_compiler():
+    compiler = os.getenv('CC',None)
+    if compiler is None:
+        compiler = distutils.sysconfig_get_config_vars().get('CC',None)
+    return compiler
+
+
 def classy_extension_config():
 
+    compiler = find_compiler()
     # the configuration for GCL python extension
     config = {}
     config['name'] = 'pyclass.binding'
-    config['extra_link_args'] = ['-g', '-fPIC','-lgomp']
+    config['extra_link_args'] = ['-g', '-fPIC','-lomp' if compiler == 'clang' else '-lgomp']
     config['extra_compile_args'] = []
     # important or get a symbol not found error, because class is
     # compiled with c++?
@@ -157,6 +165,11 @@ def classy_extension_config():
 
     # determine if swig needs to be called
     config['sources'] = ['pyclass/binding.pyx']
+
+    if compiler == 'clang':
+        os.environ.setdefault('CC','clang')
+        os.environ.setdefault('OMPFLAG','-Xclang -fopenmp')
+        os.environ.setdefault('LDFLAG','-lomp')
 
     return config
 
