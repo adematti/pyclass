@@ -162,15 +162,14 @@ def classy_extension_config():
     # important or get a symbol not found error, because class is
     # compiled with c++?
     config['language'] = 'c'
-    config['libraries'] = ['class', 'gfortran', 'm']
+    config['libraries'] = ['class', 'm']
 
     # determine if swig needs to be called
-    config['sources'] = ['pyclass/binding.pyx']
+    config['sources'] = [os.path.join('pyclass','binding.pyx')]
 
     if compiler == 'clang':
         os.environ.setdefault('CC','clang')
         os.environ.setdefault('OMPFLAG','-Xclang -fopenmp')
-        os.environ.setdefault('LDFLAG','-lomp')
 
     return config
 
