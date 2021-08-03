@@ -1,5 +1,6 @@
 import setuptools # necessary for install_requires
 
+import distutils
 from distutils.core import Command
 from numpy.distutils.core import Extension
 from numpy.distutils.command.build_clib import build_clib
