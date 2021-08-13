@@ -17,6 +17,7 @@ def test_background():
     ba = Fourier(cosmo)
     ba = Background(cosmo)
     assert ba.hubble_function(0.1).shape == ()
+    assert ba.hubble_function(np.array([0.1])).shape == (1,)
     assert ba.hubble_function([0.1]).shape == (1,)
     assert ba.hubble_function([0.2, 0.3]).shape == (2,)
     assert ba.hubble_function([[0.2, 0.3, 0.4]]).shape == (1, 3)
@@ -101,12 +102,9 @@ def test_sigma8():
     assert np.isscalar(fo.sigma8_z(z=0,of='delta_m'))
 
 
-
-import classy
-from classy import Class
-
-
 def test_classy():
+    import classy
+    from classy import Class
     params = {'output': 'dTk vTk mPk', 'P_k_max_h/Mpc': 20., 'z_max_pk': 100.0}
     cosmo = Class()
     cosmo.set(params)
@@ -117,12 +115,12 @@ def test_classy():
 
 if __name__ == '__main__':
 
-    #test_params()
+    test_params()
     test_background()
-    #test_thermodynamics()
-    #test_primordial()
-    #test_perturbations()
-    #test_transfer()
-    #test_harmonic()
-    #test_fourier()
-    #test_sigma8()
+    test_thermodynamics()
+    test_primordial()
+    test_perturbations()
+    test_transfer()
+    test_harmonic()
+    test_fourier()
+    test_sigma8()

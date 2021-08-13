@@ -82,7 +82,7 @@ def flatarray(func):
     """Decorator that flattens input array and reshapes the output in the same form."""
     @functools.wraps(func)
     def wrapper(self, array, *args, **kwargs):
-        array = np.float64(array)
+        array = np.asarray(array,dtype='f8')
         isscalar = array.ndim == 0
         array = np.atleast_1d(array)
         shape = array.shape
@@ -112,7 +112,7 @@ def gridarray(func):
     """
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
-        args = [np.float64(arg) for arg in args]
+        args = [np.asarray(arg,dtype='f8') for arg in args]
         isscalars = [arg.ndim == 0 for arg in args]
         args = [np.atleast_1d(arg) for arg in args]
         toret = func(self,*args,**kwargs)
