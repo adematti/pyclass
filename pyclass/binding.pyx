@@ -697,7 +697,6 @@ cdef class Background:
 
             \rho_{\mathrm{crit}} = \rho_\mathrm{tot} + \rho_k
         """
-        z = np.array(z, dtype='f8')
         return -self.ba.K * (1. + z) ** 2 * self._RH0_ / (1 + z)**3
 
     def rho_tot(self, z):
@@ -957,7 +956,7 @@ cdef class Thermodynamics:
         def __get__(self):
             return self.th.rs_star * self.ba.h
 
-    property theta_s:
+    property theta_rec:
         r"""Sound horizon angle at recombination, equal to :math:`r_s(z_\mathrm{rec}) / D_A(z_\mathrm{rec})`, in radians."""
         def __get__(self):
             return self.th.rs_rec/self.th.da_rec/(1.+self.th.z_rec)

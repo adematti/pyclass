@@ -89,7 +89,7 @@ class build_external_clib(build_clib):
 class custom_build_ext(build_ext):
     """
     Custom extension building to grab include directories
-    from the ``build_clib`` command
+    from the ``build_clib`` command.
     """
     def finalize_options(self):
         build_ext.finalize_options(self)
