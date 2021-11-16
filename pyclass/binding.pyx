@@ -792,7 +792,7 @@ cdef class Background:
 
     def comoving_radial_distance(self, z):
         r"""
-        Comoving radial distance, in :math:`mathrm{Mpc}/h`.
+        Comoving radial distance, in :math:`\mathrm{Mpc}/h`.
 
         See eq. 15 of `astro-ph/9905116 <https://arxiv.org/abs/astro-ph/9905116>`_ for :math:`D_C(z)`.
         """
@@ -1044,7 +1044,7 @@ cdef class Primordial:
 
         .. math::
 
-            \mathcal{P_R}(k) = A_s \left (\frac{k}{k_0} \right )^{n_s - 1 + 1/2 \ln(k/k_0) (dn_s / d\ln k)}
+            \mathcal{P_R}(k) = A_s \left (\frac{k}{k_0} \right )^{n_{s} - 1 + 1/2 \ln(k/k_0) (dn_{s} / d\ln k)}
 
         See also: eq. 2 of `this reference <https://arxiv.org/abs/1303.5076>`_.
 

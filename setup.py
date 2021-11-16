@@ -157,7 +157,7 @@ def classy_extension_config():
     # the configuration for GCL python extension
     config = {}
     config['name'] = 'pyclass.binding'
-    config['extra_link_args'] = ['-g', '-fPIC','-lomp' if compiler == 'clang' else '-lgomp']
+    config['extra_link_args'] = ['-g', '-fPIC']
     config['extra_compile_args'] = []
     # important or get a symbol not found error, because class is
     # compiled with c++?
@@ -167,9 +167,17 @@ def classy_extension_config():
     # determine if swig needs to be called
     config['sources'] = [os.path.join('pyclass','binding.pyx')]
 
+    os.environ.setdefault('CC', compiler)
     if compiler == 'clang':
-        os.environ.setdefault('CC','clang')
+        # see https://github.com/lesgourg/class_public/issues/405
         os.environ.setdefault('OMPFLAG','-Xclang -fopenmp')
+        config['extra_link_args'] += ['-lomp']
+    else:
+        config['extra_link_args'] += ['-lgomp']
+    if compiler in ['cc', 'icc']:
+        # see https://github.com/lesgourg/class_public/issues/40
+        config['libraries'] += ['irc', 'svml', 'imf']
+        config['extra_link_args'] += ['-liomp5']
 
     return config
 
