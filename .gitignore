@@ -4,6 +4,8 @@ depends/tmp-*
 depends/class_public*
 depends/class-*.tar.gz
 pyclass/binding.c
+pyclass/data
+pyclass/external
 build/
 .cache/
 *.egg-info/

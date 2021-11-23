@@ -1,19 +1,20 @@
+import os
+import sys
+import glob
+import shutil
+import sysconfig
 import setuptools # necessary for install_requires
 
-import sysconfig
 from distutils.core import Command
 from numpy.distutils.core import Extension
 from numpy.distutils.command.build_clib import build_clib
 from numpy.distutils.command.build_ext import build_ext
 from numpy.distutils.command.sdist import sdist
+from numpy.distutils.command.develop import develop
 from numpy.distutils.command.build import build
 from distutils.command.clean import clean
 from Cython.Build import cythonize
-
-import sys
-import os
 import numpy as np
-import shutil
 
 # base directory of package
 package_basedir = os.path.abspath(os.path.dirname(__file__))
@@ -46,7 +47,7 @@ def build_CLASS(prefix):
         raise ValueError('could not build CLASS v%s' %CLASS_VERSION)
 
 
-class build_external_clib(build_clib):
+class custom_build_clib(build_clib):
     """
     Custom command to build CLASS first, and then GCL library
     """
@@ -83,18 +84,16 @@ class build_external_clib(build_clib):
             # update include dirs
             self.include_dirs += build_info.get('include_dirs', [])
 
-        build_clib.build_libraries(self, libraries)
+        super(custom_build_clib,self).build_libraries(libraries)
 
 
 class custom_build_ext(build_ext):
-    """
-    Custom extension building to grab include directories
-    from the ``build_clib`` command.
-    """
+    """Custom extension building to grab include directories from the ``build_clib`` command."""
+
     def finalize_options(self):
         build_ext.finalize_options(self)
         self.include_dirs.append(np.get_include())
-        self.cython_directives = {'language_level': '3' if sys.version_info.major>=3 else '2'}
+        self.cython_directives = {'language_level':'3' if sys.version_info.major >= 3 else '2'}
 
     def run(self):
         if self.distribution.has_c_libraries():
@@ -108,7 +107,7 @@ class custom_build_ext(build_ext):
             shutil.rmtree(os.path.join(self.build_lib, 'pyclass', name), ignore_errors=True)
             shutil.copytree(os.path.join(self.build_temp, name), os.path.join(self.build_lib, 'pyclass', name))
 
-        build_ext.run(self)
+        super(custom_build_ext,self).run()
 
 
 class custom_sdist(sdist):
@@ -122,7 +121,17 @@ class custom_sdist(sdist):
         request.urlretrieve(tarball_link, tarball_local)
 
         # run the default
-        sdist.run(self)
+        super(custom_sdist,self).run()
+
+
+class custom_develop(develop):
+
+    def run(self):
+        self.run_command('build_ext')
+        build_ext = self.get_finalized_command('build_ext')
+        for name in ['external','data']:
+            shutil.copytree(os.path.join(build_ext.build_temp, name), os.path.join(package_basedir, 'pyclass', name))
+        super(custom_develop,self).run()
 
 
 class custom_clean(clean):
@@ -130,14 +139,20 @@ class custom_clean(clean):
     def run(self):
 
         # run the built-in clean
-        clean.run(self)
+        super(custom_clean,self).run()
 
         # remove the CLASS tmp directories
-        os.system('rm -rf depends/tmp*')
-
+        for dirpath in glob.glob(os.path.join('depends', 'tmp*')):
+            if os.path.exists(dirpath) and os.path.isdir(dirpath):
+                shutil.rmtree(dirpath)
+        # remove external and data directories set by develop
+        for name in ['external','data']:
+            shutil.rmtree(os.path.join(package_basedir, 'pyclass', name), ignore_errors=True)
+        for fn in glob.glob(os.path.join(package_basedir, 'pyclass', 'binding.c*')):
+            try: os.remove(fn)
+            except OSError: pass
         # remove build directory
-        if os.path.exists('build'):
-            shutil.rmtree('build')
+        shutil.rmtree('build', ignore_errors=True)
 
 
 def libclass_config():
@@ -199,8 +214,9 @@ if __name__ == '__main__':
           libraries=[libclass_config()],
           cmdclass = {
               'sdist': custom_sdist,
-              'build_clib': build_external_clib,
+              'build_clib': custom_build_clib,
               'build_ext': custom_build_ext,
+              'develop': custom_develop,
               'clean': custom_clean
           },
          packages=['pyclass']

@@ -8,15 +8,15 @@ SRC=$(UNPACK)/class_public-$(CLASS_VERSION)
 $(TARBALL):
 	curl -fsSL https://github.com/adematti/class_public/archive/v$(CLASS_VERSION).tar.gz > $(TARBALL)
 
-$(SRC)/stamp.unzip: $(TARBALL)
+$(SRC): $(TARBALL)
 	mkdir -p $(UNPACK)
 	gzip -dc $(TARBALL) | tar xf - -C $(UNPACK)
 	touch $@
 
-$(SRC)/libclass.a: $(SRC)/stamp.unzip
+$(SRC)/libclass.a: $(SRC)
 	cd $(SRC); make libclass.a
 
-$(DEST)/lib/libclass.a: $(SRC)/libclass.a Makefile
+$(DEST)/lib/libclass.a: $(SRC)/libclass.a
 	mkdir -p $(DEST)
 	cp -r $(SRC)/include $(DEST)
 	cp -r $(SRC)/external $(DEST)
@@ -24,7 +24,8 @@ $(DEST)/lib/libclass.a: $(SRC)/libclass.a Makefile
 	cp $(SRC)/libclass.a $(DEST)/lib
 	mkdir -p $(DEST)/data
 	cp $(SRC)/*.ini $(SRC)/*.pre $(DEST)/data/
-	rm -rf $(TARBALL) $(UNPACK) $(SRC)
+	rm -rf $(TARBALL)
+	#rm -rf $(TARBALL) $(UNPACK) $(SRC)
 
 unzip: $(SRC)/stamp.unzip
 build: $(SRC)/libclass.a
