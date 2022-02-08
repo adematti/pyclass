@@ -64,8 +64,12 @@ cdef extern from "class.h":
 
     cdef struct background:
         ErrorMsg error_message
-        short has_fld
+        short has_cdm
+        short has_ncdm
         short has_lambda
+        short has_fld
+        short has_ur
+        short has_dcdm
         int bg_size
         int index_bg_a
         int index_bg_ang_distance
@@ -81,6 +85,7 @@ cdef extern from "class.h":
         int index_bg_rho_g
         int index_bg_rho_b
         int index_bg_rho_cdm
+        int index_bg_rho_dcdm
         int index_bg_rho_fld
         int index_bg_rho_lambda
         int index_bg_w_fld
@@ -103,6 +108,8 @@ cdef extern from "class.h":
         double Omega0_g
         double Omega0_cdm
         double Omega0_dcdm
+        double Omega0_r
+        double Omega0_m
         double Omega0_ur
         double Omega0_ncdm_tot
         double * Omega0_ncdm

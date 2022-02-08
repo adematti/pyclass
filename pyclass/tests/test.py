@@ -12,6 +12,43 @@ def test_params():
         assert isinstance(value, str)
 
 
+def test_task_dependency():
+    params = {'P_k_max_h/Mpc': 2., 'z_max_pk': 10.0, 'k_output_values':'0.01, 0.2','modes':'s,t'}
+    cosmo = ClassEngine(params)
+
+    Background(cosmo).table()
+    Thermodynamics(cosmo).table()
+    Primordial(cosmo).table()
+    Perturbations(cosmo).table()
+    Transfer(cosmo).table()
+    Harmonic(cosmo).unlensed_table()
+    Fourier(cosmo).table()
+
+    cosmo = ClassEngine(params)
+    Fourier(cosmo).table()
+    Harmonic(cosmo).lensed_table()
+    Transfer(cosmo).table()
+    Perturbations(cosmo).table()
+    Primordial(cosmo).table()
+    Thermodynamics(cosmo).table()
+    Background(cosmo).table()
+
+    cosmo = ClassEngine(params)
+    Background(cosmo).table()
+    cosmo = ClassEngine(params)
+    Thermodynamics(cosmo).table()
+    cosmo = ClassEngine(params)
+    Primordial(cosmo).table()
+    cosmo = ClassEngine(params)
+    Perturbations(cosmo).table()
+    cosmo = ClassEngine(params)
+    Transfer(cosmo).table()
+    cosmo = ClassEngine(params)
+    Harmonic(cosmo).lensed_table()
+    cosmo = ClassEngine(params)
+    Fourier(cosmo).table()
+
+
 def test_background():
     cosmo = ClassEngine({'N_ncdm': 1, 'm_ncdm':[0.06]})
     ba = Fourier(cosmo)
@@ -43,7 +80,7 @@ def test_thermodynamics():
     z_reio = th.z_reio
     z_rec = th.z_rec
     rs_res = th.rs_rec
-    theta_s = th.theta_s
+    theta_star = th.theta_star
     t = th.table()
 
 
@@ -63,10 +100,11 @@ def test_perturbations():
 
 
 def test_transfer():
-    cosmo = ClassEngine({'P_k_max_h/Mpc': 20., 'z_max_pk': 100.0})
+    cosmo = ClassEngine({'P_k_max_h/Mpc': 20., 'z_max_pk': 100.0, 'N_ncdm': 1, 'm_ncdm':[0.06]})
     tr = Transfer(cosmo)
     t = tr.table(0.0)
     t = tr.table(2.0)
+    assert 'd_ncdm[0]' in tr.table().dtype.names
 
 
 def test_harmonic():
@@ -116,6 +154,7 @@ def test_classy():
 if __name__ == '__main__':
 
     test_params()
+    test_task_dependency()
     test_background()
     test_thermodynamics()
     test_primordial()

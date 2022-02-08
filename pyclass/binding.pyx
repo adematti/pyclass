@@ -351,27 +351,28 @@ cdef class ClassEngine:
         compute_background = 'background' in tasks and not self.ready.ba
         compute_thermodynamics = 'thermodynamics' in tasks and not self.ready.th
         compute_lensing = 'lensing' in tasks and not self.ready.le
-        """
-        if compute_lensing:
-            if self.le.has_lensed_cls == _FALSE_:
-                self.pt.l_scalar_max = self.l_scalar_max + self.pr.delta_l_max
-                self.ready.hr = False
-                self.le.has_lensed_cls = _TRUE_
-        """
+
+        #if compute_lensing:
+        #    if self.le.has_lensed_cls == _FALSE_:
+        #        self.pt.l_scalar_max = self.l_scalar_max + self.pr.delta_l_max
+        #        self.ready.hr = False
+        #        self.le.has_lensed_cls = _TRUE_
+
         compute_transfer = 'transfer' in tasks and not self.ready.tr
         compute_harmonic = 'harmonic' in tasks and not self.ready.hr
+        compute_transfer = compute_transfer or compute_harmonic # to avoid segfault if e.g. Transfer then Harmonic
         compute_fourier = 'fourier' in tasks and not self.ready.fo
         compute_primordial = 'primordial' in tasks and not self.ready.pm
         compute_distortions = 'distortions' in tasks and not self.ready.sd
         self.ready.pt = not(compute_transfer or compute_harmonic or compute_fourier)
         compute_perturbations = 'perturbations' in tasks and not self.ready.pt
-        self.pt.has_cl_cmb_temperature = short(compute_harmonic)
-        self.pt.has_cl_cmb_polarization = short(compute_harmonic)
-        self.pt.has_cls = short(compute_harmonic)
+        self.pt.has_cl_cmb_temperature = short(compute_harmonic or self.ready.hr)
+        self.pt.has_cl_cmb_polarization = short(compute_harmonic or self.ready.hr)
+        self.pt.has_cls = short(compute_harmonic or self.ready.hr)
         self.pt.has_cl_cmb_lensing_potential = self.le.has_lensed_cls
-        self.pt.has_density_transfers = short(compute_transfer)
-        self.pt.has_velocity_transfers = short(compute_transfer)
-        self.pt.has_pk_matter = short(compute_fourier)
+        self.pt.has_density_transfers = short(compute_transfer or self.ready.tr)
+        self.pt.has_velocity_transfers = short(compute_transfer or self.ready.tr)
+        self.pt.has_pk_matter = short(compute_fourier or self.ready.fo)
         # to get theta_m, theta_cb...
         self.pt.has_cl_number_count = _TRUE_
         self.pt.has_nc_rsd = _TRUE_
@@ -449,6 +450,8 @@ cdef class Background:
     cdef ClassEngine engine
     cdef background * ba
     cdef readonly double _RH0_
+    cdef readonly double Omega0_pncdm_tot
+    cdef readonly np.ndarray Omega0_pncdm
 
     def __init__(self, ClassEngine engine):
         r"""
@@ -463,6 +466,8 @@ cdef class Background:
         self.engine.compute('background')
         self.ba = &self.engine.ba
         self._RH0_ = rho_crit_Msunph_per_Mpcph3 / self.ba.H0**2
+        self.Omega0_pncdm_tot = self.Omega_pncdm_tot(0.0)
+        self.Omega0_pncdm = self.Omega_pncdm(0.0, None)
 
     property Omega0_b:
         r"""Current density parameter of baryons :math:`\Omega_{b,0}`, unitless."""
@@ -489,13 +494,8 @@ cdef class Background:
         def __get__(self):
             return self.ba.Omega0_fld
 
-    property Omega0_k:
-        r"""Current density parameter of curvaturve :math:`\Omega_{k,0}`, unitless."""
-        def __get__(self):
-            return self.ba.Omega0_k
-
     property w0_fld:
-        r"""Current fluid equation of state parameter :math:`w_{0,\mathrm{fld}}`, unitless."""
+        r"""Fluid equation of state parameter :math:`w_{0,\mathrm{fld}}`, unitless."""
         def __get__(self):
             return self.ba.w0_fld
 
@@ -503,6 +503,11 @@ cdef class Background:
         r"""Fluid equation of state derivative :math:`w_{a,\mathrm{fld}}`, unitless."""
         def __get__(self):
             return self.ba.wa_fld
+
+    property Omega0_k:
+        r"""Current density parameter of curvaturve :math:`\Omega_{k,0}`, unitless."""
+        def __get__(self):
+            return self.ba.Omega0_k
 
     property Omega0_dcdm:
         r"""Current density parameter of decaying cold dark matter :math:`\Omega_{dcdm,0}`, unitless."""
@@ -533,7 +538,8 @@ cdef class Background:
             \Omega_{0,r} = \Omega_{0,g} + \Omega_{0,\nu_r} + \Omega_{0,pncdm}.
         """
         def __get__(self):
-            return self.ba.Omega0_g + self.ba.Omega0_ur + self.Omega0_pncdm_tot
+            #return self.ba.Omega0_g + self.ba.Omega0_ur + self.Omega0_pncdm_tot
+            return self.ba.Omega0_r
 
     property Omega0_m:
         r"""
@@ -544,7 +550,8 @@ cdef class Background:
             \Omega_{0,m} = \Omega_{0,b} + \Omega_{0,cdm} + \Omega_{0,ncdm} + \Omega_{0,dcdm} - \Omega_{0,pncdm}.
         """
         def __get__(self):
-            return self.ba.Omega0_b + self.ba.Omega0_cdm + self.ba.Omega0_ncdm_tot + self.ba.Omega0_dcdm - self.Omega0_pncdm_tot
+            #return self.ba.Omega0_b + self.ba.Omega0_cdm + self.ba.Omega0_ncdm_tot + self.ba.Omega0_dcdm - self.Omega0_pncdm_tot
+            return self.ba.Omega0_m
 
     property N_eff:
         r"""Effective number of relativistic species, summed over ultra-relativistic and ncdm species."""
@@ -595,7 +602,7 @@ cdef class Background:
             return self.ba.T_cmb
 
     property T0_ncdm:
-        r"""An array holding the current ncdm temperature for each species, in :math:`K`."""
+        r"""The current ncdm temperature for each species as an array, in :math:`K`."""
         def __get__(self):
             T = np.array([self.ba.T_ncdm[i] for i in range(self.N_ncdm)], dtype='f8')
             return T*self.ba.T_cmb # from units of photon temp to K
@@ -606,9 +613,8 @@ cdef class Background:
 
     def T_ncdm(self, z):
         r"""
-        Return the ncdm temperature (massive neutrinos), in :math:`K`.
-
-        Returned shape is (N_ncdm,) if ``z`` is a scalar, else (N_ncdm,len(z)).
+        The ncdm temperature (massive neutrinos), in :math:`K`.
+        Returned shape is (N_ncdm,) if ``z`` is a scalar, else (N_ncdm, len(z)).
         """
         if np.ndim(z) == 0:
             return self.T0_ncdm * (1 + z)
@@ -617,13 +623,17 @@ cdef class Background:
 
     @flatarray
     @cython.boundscheck(False)
-    def _get_z(self, double[:] z, int column):
-        r"""
-        Internal function to compute the background module at a specific redshift and return the ``column`` value.
-        """
-        cdef int last_index #junk
-        #generate a new output array of the correct shape by broadcasting input arrays together
+    def _get_z(self, double[:] z, int column, int has=1, double default=0.):
+        r"""Internal function to compute the background module at a specific redshift and return the ``column`` value."""
+        # has specifies whether value is computed, else return default
+        # Not an issue for z=0 values, as e.g. has_fld = ba.Omega0_fld != 0. (see background.c/background_indices)
+        # Generate a new output array of the correct shape by broadcasting input arrays together
         cdef double [:] toret = np.empty_like(z)
+        if not has:
+            toret[:] = default
+            return toret
+
+        cdef int last_index #junk
         cdef double [:] pvecback = np.empty(self.ba.bg_size, dtype='f8')
         cdef int iz, z_size = z.size
 
@@ -662,18 +672,30 @@ cdef class Background:
 
     def rho_cdm(self, z):
         r"""Comoving density of cold dark matter :math:`\rho_{cdm}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
-        return self._get_z(z, self.ba.index_bg_rho_cdm) * self._RH0_ / (1 + z)**3
+        return self._get_z(z, self.ba.index_bg_rho_cdm, self.ba.has_cdm) * self._RH0_ / (1 + z)**3
 
     def rho_ur(self, z):
         r"""Comoving density of ultra-relativistic radiation (massless neutrinos) :math:`\rho_{ur}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
-        return self._get_z(z, self.ba.index_bg_rho_ur) * self._RH0_ / (1 + z)**3
+        return self._get_z(z, self.ba.index_bg_rho_ur, self.ba.has_ur) * self._RH0_ / (1 + z)**3
+
+    def rho_dcdm(self, z):
+        r"""Comoving density of decaying cold dark matter :math:`\rho_{dcdm}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
+        return self._get_z(z, self.ba.index_bg_rho_dcdm, self.ba.has_dcdm) * self._RH0_ / (1 + z)**3
 
     def rho_ncdm(self, z, species=None):
-        r"""Comoving density of non-relativistic part of massive neutrinos :math:`\rho_{ncdm}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
+        r"""
+        Comoving density of non-relativistic part of massive neutrinos for each species, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`.
+        If ``species`` is ``None`` returned shape is (N_ncdm,) if ``z`` is a scalar, else (N_ncdm, len(z)).
+        Else if ``species`` is between 0 and N_ncdm, return density for this species.
+        """
         if species is None:
-            return sum(self.rho_ncdm(z, species=i) for i in range(self.N_ncdm))
+            return np.array([self.rho_ncdm(z, species=i) for i in range(self.N_ncdm)])
         assert species < self.N_ncdm and species >= 0
-        return self._get_z(z, self.ba.index_bg_rho_ncdm1 + species) * self._RH0_ / (1 + z)**3
+        return self._get_z(z, self.ba.index_bg_rho_ncdm1 + species, self.ba.has_ncdm) * self._RH0_ / (1 + z)**3
+
+    def rho_ncdm_tot(self, z):
+        r"""Total comoving density of non-relativistic part of massive neutrinos, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
+        return np.sum(self.rho_ncdm(z, species=None), axis=0)
 
     def rho_crit(self, z):
         r"""
@@ -706,14 +728,14 @@ cdef class Background:
     def rho_fld(self, z):
         r"""Comoving density of dark energy fluid :math:`\rho_{\mathrm{fld}}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         if self.ba.has_fld:
-            return self._get_z(z, self.ba.index_bg_rho_fld) * self._RH0_ / (1 + z)**3
+            return self._get_z(z, self.ba.index_bg_rho_fld, self.ba.has_fld) * self._RH0_ / (1 + z)**3
         # return zeros of the right shape
         return self._get_z(z, self.ba.index_bg_a) * 0.0
 
     def rho_Lambda(self, z):
         r"""Comoving density of cosmological constant :math:`\rho_{\Lambda}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         if self.ba.has_lambda:
-            return self._get_z(z, self.ba.index_bg_rho_lambda) * self._RH0_ / (1 + z)**3
+            return self._get_z(z, self.ba.index_bg_rho_lambda, self.ba.has_lambda) * self._RH0_ / (1 + z)**3
         # return zeros of the right shape
         return self._get_z(z, self.ba.index_bg_a) * 0.0
 
@@ -729,12 +751,19 @@ cdef class Background:
         return self.rho_fld(z) + self.rho_Lambda(z)
 
     def p_ncdm(self, z, species=None):
-        r"""Pressure of non-relative part of massive neutrinos, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
+        r"""
+        Pressure of non-relativistic part of massive neutrinos for each species, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`.
+        If ``species`` is ``None`` returned shape is (N_ncdm,) if ``z`` is a scalar, else (N_ncdm, len(z)).
+        Else if ``species`` is between 0 and N_ncdm, return pressure for this species.
+        """
         if species is None:
-            return sum(self.p_ncdm(z, i) for i in range(self.N_ncdm))
-
+            return np.array([self.p_ncdm(z, i) for i in range(self.N_ncdm)])
         assert species < self.N_ncdm and species >= 0
-        return self._get_z(z, self.ba.index_bg_p_ncdm1 + species) * self._RH0_
+        return self._get_z(z, self.ba.index_bg_p_ncdm1 + species, self.ba.has_ncdm) * self._RH0_
+
+    def p_ncdm_tot(self, z):
+        r"""Total pressure of non-relativistic part of massive neutrinos, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
+        return np.sum(self.p_ncdm(z, species=None), axis=0)
 
     def Omega_r(self, z):
         r"""
@@ -770,9 +799,33 @@ cdef class Background:
         r"""Density parameter of ultra relativistic neutrinos, unitless."""
         return self.rho_ur(z) / self.rho_crit(z)
 
+    def Omega_dcdm(self, z):
+        r"""Density parameter of decaying cold dark matter, unitless."""
+        return self.rho_dcdm(z) / self.rho_crit(z)
+
     def Omega_ncdm(self, z, species=None):
-        r"""Density parameter of massive neutrinos, unitless."""
-        return self.rho_ncdm(z, species) / self.rho_crit(z)
+        r"""
+        Density parameter of massive neutrinos, unitless.
+        If ``species`` is ``None`` returned shape is (N_ncdm,) if ``z`` is a scalar, else (N_ncdm, len(z)).
+        Else if ``species`` is between 0 and N_ncdm, return density for this species.
+        """
+        return self.rho_ncdm(z, species=species) / self.rho_crit(z)
+
+    def Omega_ncdm_tot(self, z):
+        r"""Total density parameter of massive neutrinos, unitless."""
+        return self.rho_ncdm_tot(z) / self.rho_crit(z)
+
+    def Omega_pncdm(self, z, species=None):
+        r"""
+        Density parameter of pressure of non-relativistic part of massive neutrinos, unitless.
+        If ``species`` is ``None`` returned shape is (N_ncdm,) if ``z`` is a scalar, else (N_ncdm, len(z)).
+        Else if ``species`` is between 0 and N_ncdm, return density for this species.
+        """
+        return 3 * self.p_ncdm(z, species=species) / self.rho_crit(z)
+
+    def Omega_pncdm_tot(self, z):
+        r"""Total density parameter of pressure of non-relativistic part of massive neutrinos, unitless."""
+        return 3 * self.p_ncdm_tot(z) / self.rho_crit(z)
 
     def Omega_fld(self, z):
         r"""Density parameter of dark energy (fluid), unitless."""
@@ -1140,7 +1193,7 @@ cdef class Perturbations:
             CLASS engine instance.
         """
         self.engine = engine
-        self.engine.compute('transfer') # to actualy get perturbations...
+        self.engine.compute('transfer') # to actually get perturbations...
         self.pt = &self.engine.pt
         self.ba = &self.engine.ba
 
@@ -1294,7 +1347,7 @@ cdef class Transfer:
             Structured array of shape (number of initial conditions,k size)
         """
         if (not self.pt.has_density_transfers) and (not self.pt.has_velocity_transfers):
-            raise RuntimeError('Perturbations are not computed')
+            raise ClassRuntimeError('Transfer functions are not computed')
 
         cdef file_format outf
         cdef char titles[_MAXTITLESTRINGLENGTH_]
@@ -1311,7 +1364,9 @@ cdef class Transfer:
         # k is in h/Mpc. Other functions unit is unclear.
         dtype = _titles_to_dtype(titles)
 
-        has_mode, index_md = Perturbations.get_index_md(self.pt,mode)
+        has_mode, index_md = Perturbations.get_index_md(self.pt, mode)
+        if not has_mode:
+            raise ClassRuntimeError('mode {} has not been calculated'.format(mode))
         k_size = self.pt.k_size[index_md]
         ic_keys = Perturbations.get_ic_keys(self.pt,index_md)
 
@@ -1365,7 +1420,7 @@ cdef class Harmonic:
             Maximum :math:`\ell` desired. If negative, is relative to the requested maximum `\ell`.
 
         of : list, default=None
-            List of outputs, ['tt','ee','bb','te','pp','tp','ep']. If ``None``, returns all of them.
+            List of outputs, ['tt','ee','bb','te','pp','tp','ep']. If ``None``, return all computed outputs.
 
         Returns
         -------
@@ -1374,7 +1429,7 @@ cdef class Harmonic:
 
         Note
         ----
-        Normalisation is $C_\ell$ rather than :math:`\ell(\ell+1)C_{\ell}/(2\pi)` (or :math:`\ell^{2}(\ell+1)^{2}/(2\pi)` in the case of
+        Normalisation is :math:`C_{\ell}` rather than :math:`\ell(\ell+1)C_{\ell}/(2\pi)` (or :math:`\ell^{2}(\ell+1)^{2}/(2\pi)` in the case of
         the lensing potential ``pp`` spectrum).
         Usually multiplied by CMB temperature in :math:`\mu K`.
         """
@@ -1404,10 +1459,11 @@ cdef class Harmonic:
             (self.hr.has_ep, self.hr.index_ct_ep, 'ep')]
         indices = {}
         for flag, index, name in has_flags:
-            if of is None and flag == _FALSE_: continue
+            if of is None:
+                if flag == _FALSE_: continue
             elif name not in of: continue
             elif name in of and flag == _FALSE_:
-                raise ClassBadValueError('You asked for {}, but it has not been calculated. Please set lensing = yes.'.format(name))
+                raise ClassBadValueError('You asked for {}, but it has not been calculated.'.format(name))
             indices[name] = index
 
         names = list(indices.keys())
@@ -1446,7 +1502,7 @@ cdef class Harmonic:
             Maximum :math:`\ell` desired. If negative, is relative to the requested maximum `\ell`.
 
         of : list, default=None
-            List of outputs, ['tt','ee','bb','pp','te','tp']. If ``None``, returns all of them.
+            List of outputs, ['tt','ee','bb','pp','te','tp']. If ``None``, return all computed outputs.
 
         Returns
         -------
@@ -1466,7 +1522,8 @@ cdef class Harmonic:
                 (self.le.has_tp, self.le.index_lt_tp, 'tp')]
         indices = {}
         for flag, index, name in has_flags:
-            if of is None and flag == _FALSE_: continue
+            if of is None:
+                if flag == _FALSE_: continue
             elif name not in of: continue
             elif name in of and flag == _FALSE_:
                 raise ClassBadValueError('You asked for lensed {}, but it has not been calculated. Please set lensing = yes.'.format(name))
