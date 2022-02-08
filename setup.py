@@ -31,7 +31,7 @@ def find_version(path, name='version'):
     raise RuntimeError('version not found')
 
 
-CLASS_VERSION = find_version('pyclass/version.py', name='class_version')
+CLASS_VERSION = find_version('pyclass/_version.py', name='class_version')
 
 
 def build_CLASS(prefix):
@@ -201,7 +201,7 @@ if __name__ == '__main__':
 
     from numpy.distutils.core import setup
     setup(name='pyclass',
-          version=find_version('pyclass/version.py'),
+          version=find_version('pyclass/_version.py'),
           author='Arnaud de Mattia, based on classylss of Nick Hand, Yu Feng',
           author_email='',
           description='Python binding of the CLASS CMB Boltzmann code',

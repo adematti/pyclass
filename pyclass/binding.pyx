@@ -1704,7 +1704,7 @@ cdef class Fourier:
 
         if self.fo.ln_tau_size == 1:
             raise ClassRuntimeError("You ask CLASS to return an array of P(k,z) values, but the input parameters sent to CLASS did not require "
-                                "any P(k,z) calculations for z>0; pass either a list of z in 'z_pk' or one non-zero value in 'z_max_pk'")
+                                    "any P(k,z) calculations for z>0; pass either a list of z in 'z_pk' or one non-zero value in 'z_max_pk'")
 
         for index_tau in range(self.fo.ln_tau_size):
             if index_tau == self.fo.ln_tau_size-1:
@@ -1720,7 +1720,7 @@ cdef class Fourier:
                 raise ClassRuntimeError("table() is trying to return P(k,z) up to z_max={:.e} (to encompass your requested maximum value of z); "
                 "but the input parameters sent to CLASS were such that the non-linear P(k,z) could only be consistently computed up to z={:.e}; "
                 "increase the input parameter 'P_k_max_h/Mpc' or 'P_k_max_1/Mpc', or increase the precision parameters 'halofit_min_k_max' and/or "
-                "'hmcode_min_k_max', or decrease your requested z_max".format(z_max_requested,z_max_nonlinear))
+                "'hmcode_min_k_max', or decrease your requested z_max".format(z_max_requested, z_max_nonlinear))
 
         if not isinstance(of,(tuple,list)):
             of = (of,of)

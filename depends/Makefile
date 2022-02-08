@@ -1,4 +1,4 @@
-CLASS_VERSION?=3.0.1
+CLASS_VERSION?=3.1.1
 DEST?=_inst
 
 TARBALL=class-v$(CLASS_VERSION).tar.gz
@@ -25,7 +25,7 @@ $(DEST)/lib/libclass.a: $(SRC)/libclass.a
 	mkdir -p $(DEST)/data
 	cp $(SRC)/*.ini $(SRC)/*.pre $(DEST)/data/
 	rm -rf $(TARBALL)
-	#rm -rf $(TARBALL) $(UNPACK) $(SRC)
+	rm -rf $(TARBALL) $(UNPACK) $(SRC)
 
 unzip: $(SRC)/stamp.unzip
 build: $(SRC)/libclass.a
