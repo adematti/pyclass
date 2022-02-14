@@ -28,7 +28,7 @@ In this case, you can try to export::
 
 .. code:: bash
 
-  export CC=clang
+   export CC=clang
 
 Before installing **pyclass**. This will set clang OpenMP flags for compilation (see https://github.com/lesgourg/class_public/issues/405). Note that with Mac OS gcc can point to clang.
 
