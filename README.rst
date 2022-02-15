@@ -19,7 +19,7 @@ Installation
 
 .. code:: bash
 
-   pip install git+https://github.com/adematti/pyclass
+   python -m pip install git+https://github.com/adematti/pyclass
 
 Mac OS
 ------

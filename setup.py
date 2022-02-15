@@ -18,20 +18,13 @@ import numpy as np
 
 # base directory of package
 package_basedir = os.path.abspath(os.path.dirname(__file__))
+package_basename = 'pyclass'
 
 
-def find_version(path, name='version'):
-    import re
-    # path shall be a plain ascii text file.
-    s = open(path, 'rt').read()
-    version_match = re.search(r"^%s = ['\"]([^'\"]*)['\"]" %name,
-                              s, re.M)
-    if version_match:
-        return version_match.group(1)
-    raise RuntimeError('version not found')
-
-
-CLASS_VERSION = find_version('pyclass/_version.py', name='class_version')
+sys.path.insert(0, os.path.join(package_basedir, package_basename))
+import _version
+version = _version.version
+class_version = _version.class_version
 
 
 def build_CLASS(prefix):
@@ -39,12 +32,12 @@ def build_CLASS(prefix):
     Function to dowwnload CLASS from github and build the library
     """
     # latest class version and download link
-    args = (package_basedir, package_basedir, CLASS_VERSION, os.path.abspath(prefix))
+    args = (package_basedir, package_basedir, class_version, os.path.abspath(prefix))
     command = 'sh %s/depends/install_class.sh %s %s %s' %args
 
     ret = os.system(command)
     if ret != 0:
-        raise ValueError('could not build CLASS v%s' %CLASS_VERSION)
+        raise ValueError('could not build CLASS v%s' %class_version)
 
 
 class custom_build_clib(build_clib):
@@ -116,8 +109,8 @@ class custom_sdist(sdist):
         from six.moves.urllib import request
 
         # download CLASS
-        tarball_link = 'https://github.com/adematti/class_public/archive/v%s.tar.gz' % CLASS_VERSION
-        tarball_local = os.path.join('depends', 'class-v%s.tar.gz' % CLASS_VERSION)
+        tarball_link = 'https://github.com/adematti/class_public/archive/v%s.tar.gz' % class_version
+        tarball_local = os.path.join('depends', 'class-v%s.tar.gz' % class_version)
         request.urlretrieve(tarball_link, tarball_local)
 
         # run the default
@@ -201,7 +194,7 @@ if __name__ == '__main__':
 
     from numpy.distutils.core import setup
     setup(name='pyclass',
-          version=find_version('pyclass/_version.py'),
+          version=version,
           author='Arnaud de Mattia, based on classylss of Nick Hand, Yu Feng',
           author_email='',
           description='Python binding of the CLASS CMB Boltzmann code',
