@@ -1,4 +1,5 @@
-#cython: embedsignature=True
+# cython: embedsignature=True
+# cython: binding=True
 import functools
 cimport cython
 import numpy as np
@@ -78,24 +79,36 @@ def joinstr(s, *args):
     return ','.join(args)
 
 
+def _bcast_dtype(*args):
+    """If input arrays are all float32, return float32; else float64."""
+    toret = [getattr(arg, 'dtype', None) for arg in args]
+    if all(dt is not None for dt in toret):
+        toret = sum(arg.flat[:1] for arg in args).dtype
+        if not np.issubdtype(toret, np.floating):
+            toret = np.float64
+    else:
+        toret = np.float64
+    return toret
+
+
 def flatarray(func):
     """Decorator that flattens input array and reshapes the output in the same form."""
     @functools.wraps(func)
-    def wrapper(self, array, *args, **kwargs):
-        array = np.asarray(array,dtype='f8')
+    def wrapper(self, *args, **kwargs):
+        toret_dtype = _bcast_dtype(args[0])
+        array = np.asarray(args[0], dtype=np.float64)
         isscalar = array.ndim == 0
-        array = np.atleast_1d(array)
         shape = array.shape
-        toret = func(self,array.ravel(),*args,**kwargs)
+        array.shape = (-1,)
+        toret = func(self, array, *args[1:], **kwargs)
+        array.shape = shape
 
         def reshape(toret):
-            if isscalar:
-                return toret[0]
-            toret.shape = shape
-            return toret
+            toret.shape = toret.shape[:-1] + shape
+            return toret.astype(dtype=toret_dtype, copy=False)
 
-        if isinstance(toret,dict):
-            for key,value in toret.items():
+        if isinstance(toret, dict):
+            for key, value in toret.items():
                 toret[key] = reshape(value)
         else:
             toret = reshape(toret)
@@ -112,14 +125,19 @@ def gridarray(func):
     """
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
-        args = [np.asarray(arg,dtype='f8') for arg in args]
-        isscalars = [arg.ndim == 0 for arg in args]
-        args = [np.atleast_1d(arg) for arg in args]
-        toret = func(self,*args,**kwargs)
-        shape = tuple([arg.size for arg,isscalar in zip(args,isscalars) if not isscalar])
-        if not shape:
-            return toret.flat[0]
-        return toret.reshape(shape)
+        toret_dtype = _bcast_dtype(*args)
+        arrays = []; shapes = []; toret_shape = tuple()
+        for array in args:
+            array = np.asarray(array, dtype=np.float64)
+            shapes.append(array.shape)
+            toret_shape = toret_shape + array.shape
+            array.shape = (-1,)
+            arrays.append(array)
+        toret = func(self, *arrays, **kwargs)
+        for array, shape in zip(arrays, shapes):
+            array.shape = shape
+        toret.shape = toret_shape
+        return toret.astype(dtype=toret_dtype, copy=False)
 
     return wrapper
 
@@ -177,9 +195,9 @@ cdef np.dtype _titles_to_dtype(char * titles, int remove_units=False):
     names = tmp.split('\t')[:-1]
     number_of_titles = len(names)
     if remove_units:
-        dtype = np.dtype([(str(name.split()[0]), 'f8') for name in names])
+        dtype = np.dtype([(str(name.split()[0]), np.float64) for name in names])
     else:
-        dtype = np.dtype([(str(name), 'f8') for name in names])
+        dtype = np.dtype([(str(name), np.float64) for name in names])
     return dtype
 
 
@@ -494,6 +512,11 @@ cdef class Background:
         def __get__(self):
             return self.ba.Omega0_fld
 
+    property Omega0_de:
+        r"""Current density parameter of dark energy (fluid + cosmological constant) :math:`\Omega_{de, 0}`, unitless."""
+        def __get__(self):
+            return self.ba.Omega0_fld + self.ba.Omega0_lambda
+
     property w0_fld:
         r"""Fluid equation of state parameter :math:`w_{0,\mathrm{fld}}`, unitless."""
         def __get__(self):
@@ -517,7 +540,7 @@ cdef class Background:
     property Omega0_ncdm:
         r"""Current density parameter of distinguishable (massive) neutrinos for each species as an array :math:`\Omega_{0, ncdm}`, unitless."""
         def __get__(self):
-            return np.array([self.ba.Omega0_ncdm[i] for i in range(self.N_ncdm)], dtype='f8')
+            return np.array([self.ba.Omega0_ncdm[i] for i in range(self.N_ncdm)], dtype=np.float64)
 
     property Omega0_ncdm_tot:
         r"""Current total density parameter of all distinguishable (massive) neutrinos, unitless."""
@@ -579,7 +602,7 @@ cdef class Background:
     property m_ncdm:
         r"""The masses of the distinguishable ncdm (massive neutrino) species, in :math:`\mathrm{eV}`."""
         def __get__(self):
-            return np.array([self.ba.m_ncdm_in_eV[i] for i in range(self.N_ncdm)], dtype='f8')
+            return np.array([self.ba.m_ncdm_in_eV[i] for i in range(self.N_ncdm)], dtype=np.float64)
 
     property age0:
         r"""The current age of the Universe, in :math:`\mathrm{Gy}`."""
@@ -604,24 +627,22 @@ cdef class Background:
     property T0_ncdm:
         r"""The current ncdm temperature for each species as an array, in :math:`K`."""
         def __get__(self):
-            T = np.array([self.ba.T_ncdm[i] for i in range(self.N_ncdm)], dtype='f8')
+            T = np.array([self.ba.T_ncdm[i] for i in range(self.N_ncdm)], dtype=np.float64)
             return T*self.ba.T_cmb # from units of photon temp to K
 
+    @flatarray
     def T_cmb(self, z):
         r"""The CMB temperature, in :math:`K`."""
         return self.T0_cmb * (1 + z)
 
+    @flatarray
     def T_ncdm(self, z):
         r"""
         The ncdm temperature (massive neutrinos), in :math:`K`.
         Returned shape is (N_ncdm,) if ``z`` is a scalar, else (N_ncdm, len(z)).
         """
-        if np.ndim(z) == 0:
-            return self.T0_ncdm * (1 + z)
-        z = np.array(z, ndmin=1, dtype='f8')
-        return (self.T0_ncdm * (1 + z)[:,None]).T
+        return self.T0_ncdm[:, None] * (1 + z)
 
-    @flatarray
     @cython.boundscheck(False)
     def _get_z(self, double[:] z, int column, int has=1, double default=0.):
         r"""Internal function to compute the background module at a specific redshift and return the ``column`` value."""
@@ -631,10 +652,10 @@ cdef class Background:
         cdef double [:] toret = np.empty_like(z)
         if not has:
             toret[:] = default
-            return toret
+            return np.asarray(toret)
 
         cdef int last_index #junk
-        cdef double [:] pvecback = np.empty(self.ba.bg_size, dtype='f8')
+        cdef double [:] pvecback = np.empty(self.ba.bg_size, dtype=np.float64)
         cdef int iz, z_size = z.size
 
         with nogil:
@@ -649,6 +670,7 @@ cdef class Background:
                     toret[iz] = pvecback[column]
         return np.asarray(toret)
 
+    @flatarray
     def rho_g(self, z):
         r"""Comoving density of photons :math:`\rho_{g}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`.
 
@@ -658,30 +680,37 @@ cdef class Background:
         """
         return self._get_z(z, self.ba.index_bg_rho_g) * self._RH0_ / (1 + z)**3
 
+    @flatarray
     def rho_b(self, z):
         r"""Comoving density of baryons :math:`\rho_{b}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         return self._get_z(z, self.ba.index_bg_rho_b) * self._RH0_ / (1 + z)**3
 
+    @flatarray
     def rho_m(self, z):
         r"""Comoving density of matter :math:`\rho_{b}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         return self._get_z(z, self.ba.index_bg_Omega_m) * self.rho_crit(z)
 
+    @flatarray
     def rho_r(self, z):
         r"""Comoving density of radiation :math:`\rho_{r}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         return self._get_z(z, self.ba.index_bg_Omega_r) * self.rho_crit(z)
 
+    @flatarray
     def rho_cdm(self, z):
         r"""Comoving density of cold dark matter :math:`\rho_{cdm}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         return self._get_z(z, self.ba.index_bg_rho_cdm, self.ba.has_cdm) * self._RH0_ / (1 + z)**3
 
+    @flatarray
     def rho_ur(self, z):
         r"""Comoving density of ultra-relativistic radiation (massless neutrinos) :math:`\rho_{ur}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         return self._get_z(z, self.ba.index_bg_rho_ur, self.ba.has_ur) * self._RH0_ / (1 + z)**3
 
+    @flatarray
     def rho_dcdm(self, z):
         r"""Comoving density of decaying cold dark matter :math:`\rho_{dcdm}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         return self._get_z(z, self.ba.index_bg_rho_dcdm, self.ba.has_dcdm) * self._RH0_ / (1 + z)**3
 
+    @flatarray
     def rho_ncdm(self, z, species=None):
         r"""
         Comoving density of non-relativistic part of massive neutrinos for each species, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`.
@@ -689,14 +718,17 @@ cdef class Background:
         Else if ``species`` is between 0 and N_ncdm, return density for this species.
         """
         if species is None:
-            return np.array([self.rho_ncdm(z, species=i) for i in range(self.N_ncdm)])
-        assert species < self.N_ncdm and species >= 0
+            toret = np.empty((self.N_ncdm, len(z))) # to make sure returned array is size (N_ncdm, len(z))
+            for i in range(self.N_ncdm): toret[i] = self.rho_ncdm(z, species=i)
+            return toret
+        assert 0 <= species < self.N_ncdm
         return self._get_z(z, self.ba.index_bg_rho_ncdm1 + species, self.ba.has_ncdm) * self._RH0_ / (1 + z)**3
 
     def rho_ncdm_tot(self, z):
         r"""Total comoving density of non-relativistic part of massive neutrinos, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         return np.sum(self.rho_ncdm(z, species=None), axis=0)
 
+    @flatarray
     def rho_crit(self, z):
         r"""
         Comoving critical density excluding curvature :math:`\rho_{c}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`.
@@ -709,6 +741,7 @@ cdef class Background:
         """
         return self._get_z(z, self.ba.index_bg_rho_crit) * self._RH0_ / (1 + z)**3
 
+    @flatarray
     def rho_k(self, z):
         r"""
         Comoving density of curvature :math:`\rho_{k}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`.
@@ -721,10 +754,12 @@ cdef class Background:
         """
         return -self.ba.K * (1. + z) ** 2 * self._RH0_ / (1 + z)**3
 
+    @flatarray
     def rho_tot(self, z):
         r"""Comoving total density :math:`\rho_{\mathrm{tot}}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         return self.rho_crit(z) - self.rho_k(z)
 
+    @flatarray
     def rho_fld(self, z):
         r"""Comoving density of dark energy fluid :math:`\rho_{\mathrm{fld}}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         if self.ba.has_fld:
@@ -732,6 +767,7 @@ cdef class Background:
         # return zeros of the right shape
         return self._get_z(z, self.ba.index_bg_a) * 0.0
 
+    @flatarray
     def rho_Lambda(self, z):
         r"""Comoving density of cosmological constant :math:`\rho_{\Lambda}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         if self.ba.has_lambda:
@@ -739,8 +775,9 @@ cdef class Background:
         # return zeros of the right shape
         return self._get_z(z, self.ba.index_bg_a) * 0.0
 
+    @flatarray
     def rho_de(self, z):
-        r"""Comoving total density of dark energy :math:`\rho_{\mathrm{de}}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`.
+        r"""Total comoving density of dark energy :math:`\rho_{\mathrm{de}}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`.
 
         This is defined as:
 
@@ -750,21 +787,25 @@ cdef class Background:
         """
         return self.rho_fld(z) + self.rho_Lambda(z)
 
+    @flatarray
     def p_ncdm(self, z, species=None):
         r"""
-        Pressure of non-relativistic part of massive neutrinos for each species, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`.
+        Comoving pressure of non-relativistic part of massive neutrinos for each species, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`.
         If ``species`` is ``None`` returned shape is (N_ncdm,) if ``z`` is a scalar, else (N_ncdm, len(z)).
         Else if ``species`` is between 0 and N_ncdm, return pressure for this species.
         """
         if species is None:
-            return np.array([self.p_ncdm(z, i) for i in range(self.N_ncdm)])
-        assert species < self.N_ncdm and species >= 0
-        return self._get_z(z, self.ba.index_bg_p_ncdm1 + species, self.ba.has_ncdm) * self._RH0_
+            toret = np.empty((self.N_ncdm, len(z))) # to make sure returned array is size (N_ncdm, len(z))
+            for i in range(self.N_ncdm): toret[i] = self.p_ncdm(z, species=i)
+            return toret
+        assert 0 <= species < self.N_ncdm
+        return self._get_z(z, self.ba.index_bg_p_ncdm1 + species, self.ba.has_ncdm) * self._RH0_ / (1 + z)**3
 
     def p_ncdm_tot(self, z):
-        r"""Total pressure of non-relativistic part of massive neutrinos, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
+        r"""Total comoving pressure of non-relativistic part of massive neutrinos, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         return np.sum(self.p_ncdm(z, species=None), axis=0)
 
+    @flatarray
     def Omega_r(self, z):
         r"""
         Density parameter of relativistic (radiation-like) component, including
@@ -772,6 +813,7 @@ cdef class Background:
         """
         return self.rho_r(z) / self.rho_crit(z)
 
+    @flatarray
     def Omega_m(self, z):
         r"""
         Density parameter of non-relativistic (matter-like) component, including
@@ -779,30 +821,37 @@ cdef class Background:
         """
         return self.rho_m(z) / self.rho_crit(z)
 
+    @flatarray
     def Omega_g(self, z):
         r"""Density parameter of photons, unitless."""
         return self.rho_g(z) / self.rho_crit(z)
 
+    @flatarray
     def Omega_b(self, z):
         r"""Density parameter of baryons, unitless."""
         return self.rho_b(z) / self.rho_crit(z)
 
+    @flatarray
     def Omega_cdm(self, z):
         r"""Density parameter of cold dark matter, unitless."""
         return self.rho_cdm(z) / self.rho_crit(z)
 
+    @flatarray
     def Omega_k(self, z):
         r"""Density parameter of curvature, unitless."""
         return 1 - self.rho_tot(z)/self.rho_crit(z)
 
+    @flatarray
     def Omega_ur(self, z):
         r"""Density parameter of ultra relativistic neutrinos, unitless."""
         return self.rho_ur(z) / self.rho_crit(z)
 
+    @flatarray
     def Omega_dcdm(self, z):
         r"""Density parameter of decaying cold dark matter, unitless."""
         return self.rho_dcdm(z) / self.rho_crit(z)
 
+    @flatarray
     def Omega_ncdm(self, z, species=None):
         r"""
         Density parameter of massive neutrinos, unitless.
@@ -811,10 +860,12 @@ cdef class Background:
         """
         return self.rho_ncdm(z, species=species) / self.rho_crit(z)
 
+    @flatarray
     def Omega_ncdm_tot(self, z):
         r"""Total density parameter of massive neutrinos, unitless."""
         return self.rho_ncdm_tot(z) / self.rho_crit(z)
 
+    @flatarray
     def Omega_pncdm(self, z, species=None):
         r"""
         Density parameter of pressure of non-relativistic part of massive neutrinos, unitless.
@@ -823,26 +874,32 @@ cdef class Background:
         """
         return 3 * self.p_ncdm(z, species=species) / self.rho_crit(z)
 
+    @flatarray
     def Omega_pncdm_tot(self, z):
         r"""Total density parameter of pressure of non-relativistic part of massive neutrinos, unitless."""
         return 3 * self.p_ncdm_tot(z) / self.rho_crit(z)
 
+    @flatarray
     def Omega_fld(self, z):
         r"""Density parameter of dark energy (fluid), unitless."""
         return self.rho_fld(z) / self.rho_crit(z)
 
+    @flatarray
     def Omega_Lambda(self, z):
         r"""Density of cosmological constant, unitless."""
         return self.rho_Lambda(z) / self.rho_crit(z)
 
+    @flatarray
     def Omega_de(self, z):
-        r"""Density of total dark energy (fluid + cosmological constant), unitless."""
+        r"""Total density of dark energy (fluid + cosmological constant), unitless."""
         return self.rho_de(z) / self.rho_crit(z)
 
+    @flatarray
     def time(self, z):
         r"""Proper time (age of universe), in :math:`\mathrm{Gy}`."""
         return self._get_z(z, self.ba.index_bg_time) / _Gyr_over_Mpc_
 
+    @flatarray
     def comoving_radial_distance(self, z):
         r"""
         Comoving radial distance, in :math:`\mathrm{Mpc}/h`.
@@ -851,14 +908,17 @@ cdef class Background:
         """
         return self._get_z(z, self.ba.index_bg_conf_distance) * self.ba.h
 
+    @flatarray
     def conformal_time(self, z):
         r"""Conformal time, in :math:`\mathrm{Mpc}/h`."""
         return self._get_z(z, self.ba.index_bg_conf_distance) * self.ba.h
 
+    @flatarray
     def hubble_function(self, z):
         r"""Hubble function ``ba.index_bg_H``, in :math:`\mathrm{km}/\mathrm{s}/\mathrm{Mpc}`."""
         return self._get_z(z, self.ba.index_bg_H) * _c_ / 1e3
 
+    @flatarray
     def hubble_function_prime(self, z):
         r"""
         Derivative of Hubble function: :math:`dH/d\tau`, where :math:`d\tau/da = 1 / (a^{2} H)`, in :math:`\mathrm{km}/\mathrm{s}`.
@@ -867,15 +927,18 @@ cdef class Background:
         """
         return self._get_z(z, self.ba.index_bg_H_prime) * _c_ / 1e3
 
+    @flatarray
     def efunc(self, z):
         r"""Function giving :math:`E(z)`, where the Hubble parameter is defined as :math:`H(z) = H_{0} E(z)`, unitless."""
         return self._get_z(z, self.ba.index_bg_H) / self.ba.H0
 
+    @flatarray
     def efunc_prime(self, z):
         r"""Function giving :math:`dE(z) / da`, unitless."""
         dtau_da = (1 + z)**2 / self.hubble_function(z)
         return self.hubble_function_prime(z) / self.ba.H0 * dtau_da
 
+    @flatarray
     def luminosity_distance(self, z):
         r"""
         Luminosity distance, in :math:`\mathrm{Mpc}/h`.
@@ -884,6 +947,7 @@ cdef class Background:
         """
         return self._get_z(z, self.ba.index_bg_lum_distance) * self.ba.h
 
+    @flatarray
     def angular_diameter_distance(self, z):
         r"""
         Proper angular diameter distance, in :math:`\mathrm{Mpc}/h`.
@@ -892,6 +956,7 @@ cdef class Background:
         """
         return self._get_z(z, self.ba.index_bg_ang_distance) * self.ba.h
 
+    @flatarray
     def comoving_angular_distance(self, z):
         r"""
         Comoving angular distance, in :math:`\mathrm{Mpc}/h`.
@@ -900,6 +965,7 @@ cdef class Background:
         """
         return self.angular_diameter_distance(z)*(1. + z)
 
+    @flatarray
     def growth_factor(self, z):
         r"""
         Return the scale invariant growth factor :math:`D(a)` for cold dark matter perturbations, unitless.
@@ -914,6 +980,7 @@ cdef class Background:
         """
         return self._get_z(z, self.ba.index_bg_D)
 
+    @flatarray
     def growth_rate(self, z):
         r"""
         Return the scale invariant growth rate :math:`d\mathrm{ln}D/d\mathrm{ln}a` for cold dark matter perturbations.
@@ -1122,7 +1189,7 @@ cdef class Primordial:
         ic_keys = Perturbations.get_ic_keys(self.pt,index_md)
         ic_num = len(ic_keys)
         ic_ic_num = self.pm.ic_ic_size[index_md]
-        cdef double[:,:] data = np.empty((k.size,ic_ic_num),dtype='f8')
+        cdef double[:,:] data = np.empty((k.size,ic_ic_num),dtype=np.float64)
         cdef int k_size = k.size
         cdef int ik
 
@@ -1467,7 +1534,7 @@ cdef class Harmonic:
             indices[name] = index
 
         names = list(indices.keys())
-        dtype = np.dtype([('ell','i8')] + [(str(name),'f8') for name in names])
+        dtype = np.dtype([('ell',np.int64)] + [(str(name),np.float64) for name in names])
         if ellmax < 0:
             ellmax = self.hr.l_max_tot + 1 + ellmax
             if self.le.has_lensed_cls:
@@ -1530,7 +1597,7 @@ cdef class Harmonic:
             indices[name] = index
 
         names = list(indices.keys())
-        dtype = np.dtype([('ell','i8')] + [(str(name),'f8') for name in names])
+        dtype = np.dtype([('ell',np.int64)] + [(str(name),np.float64) for name in names])
         if ellmax < 0:
             ellmax = self.le.l_lensed_max + 1 + ellmax
         if ellmax > self.le.l_lensed_max:
@@ -1640,7 +1707,7 @@ cdef class Fourier:
             Array of shape ``(r.size, z.size)`` (null dimensions are squeezed).
         """
         cdef int r_size = r.size, z_size = z.size
-        cdef double[:,:] toret = np.empty((r_size,z_size), dtype='f8')
+        cdef double[:,:] toret = np.empty((r_size,z_size), dtype=np.float64)
         cdef int index = self._index_pk_of(of)
         cdef int ir, iz
         with nogil:
@@ -1650,9 +1717,10 @@ cdef class Fourier:
                         toret[ir,iz] = NAN
         return np.asarray(toret)
 
+    @flatarray
     def sigma8_z(self, z, of='delta_m'):
         """Return the r.m.s. of `of` perturbations in sphere of :math:`8 \mathrm{Mpc}/h`."""
-        return self.sigma_rz(8.,z,of=of)
+        return self.sigma_rz(8., z, of=of)
 
     def _index_pk_of(self, of='delta_m'):
         """Helper routine that returns index of `of` power spectrum."""
@@ -1709,8 +1777,8 @@ cdef class Fourier:
 
         k_size,z_size = k.size,z.size
         cdef np.ndarray kh = k * self.ba.h
-        cdef np.ndarray pk = np.empty(k_size*z_size, dtype='f8')
-        cdef np.ndarray pk_cb = np.empty(k_size*z_size, dtype='f8')
+        cdef np.ndarray pk = np.empty(k_size*z_size, dtype=np.float64)
+        cdef np.ndarray pk_cb = np.empty(k_size*z_size, dtype=np.float64)
 
         fourier_pks_at_kvec_and_zvec(self.ba, self.fo, is_nonlinear, <double*> kh.data, k_size, <double*> z.data, z_size, <double*> pk.data, <double*> pk_cb.data)
 
@@ -1745,9 +1813,9 @@ cdef class Fourier:
         pk : numpy.ndarray
             Power spectrum array of shape (len(k),len(z)).
         """
-        k = np.array(<double[:self.fo.k_size]> self.fo.k,dtype='f8')
-        cdef double[:] z = np.empty(self.fo.ln_tau_size,dtype='f8')
-        cdef double[:,:] pk_at_k_z = np.empty((self.fo.k_size, self.fo.ln_tau_size),dtype='f8')
+        k = np.array(<double[:self.fo.k_size]> self.fo.k,dtype=np.float64)
+        cdef double[:] z = np.empty(self.fo.ln_tau_size,dtype=np.float64)
+        cdef double[:,:] pk_at_k_z = np.empty((self.fo.k_size, self.fo.ln_tau_size),dtype=np.float64)
         cdef pk_outputs is_nonlinear = self._use_pk_nonlinear(nonlinear)
         cdef int index_k, index_tau
         cdef double z_max_nonlinear, z_max_requested
@@ -1797,7 +1865,7 @@ cdef class Fourier:
 
         else:
             primordial_pk = <double*> malloc(self.fo.ic_ic_size*sizeof(double))
-            pvecback = np.empty(self.ba.bg_size, dtype='f8')
+            pvecback = np.empty(self.ba.bg_size, dtype=np.float64)
             indices = {
             'delta_m':self.pt.index_tp_delta_m,
             'delta_cb':self.pt.index_tp_delta_cb if self.pt.has_source_delta_cb == _TRUE_ else self.pt.index_tp_delta_m,
