@@ -81,12 +81,8 @@ def joinstr(s, *args):
 
 def _bcast_dtype(*args):
     """If input arrays are all float32, return float32; else float64."""
-    toret = [getattr(arg, 'dtype', None) for arg in args]
-    if all(dt is not None for dt in toret):
-        toret = sum(arg.flat[:1] for arg in args).dtype
-        if not np.issubdtype(toret, np.floating):
-            toret = np.float64
-    else:
+    toret = np.result_type(*(getattr(arg, 'dtype', None) for arg in args))
+    if not np.issubdtype(toret, np.floating):
         toret = np.float64
     return toret
 

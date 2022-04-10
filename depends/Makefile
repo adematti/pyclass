@@ -27,7 +27,6 @@ $(DEST)/lib/libclass.a: $(SRC)/libclass.a
 	rm -rf $(TARBALL)
 	rm -rf $(TARBALL) $(UNPACK) $(SRC)
 
-unzip: $(SRC)/stamp.unzip
 build: $(SRC)/libclass.a
 install: $(DEST)/lib/libclass.a
 clean:
