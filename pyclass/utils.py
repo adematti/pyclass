@@ -1,3 +1,9 @@
+"""
+Utilities for CLASS external files.
+Taken from https://github.com/nickhand/classylss/blob/master/classylss/__init__.py.
+"""
+
+
 def get_external_files():
     """
     Return the path of external files required for running CLASS.
@@ -7,12 +13,10 @@ def get_external_files():
 
     path = os.path.dirname(__file__)
     path = os.path.join(path, 'external')
-    toret = {
-        'hyrec_path': os.path.join(path, 'HyRec2020') + os.sep,
-        'Galli_file': os.path.join(path, 'heating', 'Galli_et_al_2013.dat'),
-        'sd_external_path': os.path.join(path, 'distortions') + os.sep,
-        'sBBN file': os.path.join(path, 'bbn', 'sBBN.dat'),
-    }
+    toret = {'hyrec_path': os.path.join(path, 'HyRec2020') + os.sep,
+             'Galli_file': os.path.join(path, 'heating', 'Galli_et_al_2013.dat'),
+             'sd_external_path': os.path.join(path, 'distortions') + os.sep,
+             'sBBN file': os.path.join(path, 'bbn', 'sBBN.dat')}
     return toret
 
 
@@ -26,7 +30,7 @@ def _find_file(filename):
         path = os.path.join(path, 'external', filename)
 
     if not os.path.exists(path):
-        raise ValueError("cannot locate file '%s'" %filename)
+        raise ValueError('Cannot locate file {}'.format(filename))
 
     return path
 
@@ -56,16 +60,16 @@ def load_ini(filename):
             if not line: continue
 
             # skip any commented lines with #
-            if '#' in line: line = line[line.index('#')+1:]
+            if '#' in line: line = line[line.index('#') + 1:]
 
             # must have an equals sign to be valid
             if "=" not in line: continue
 
             # extract key and value pairs
-            fields = line.split("=")
+            fields = line.split('=')
             if len(fields) != 2:
                 import warnings
-                warnings.warn("skipping line number %d: '%s'" %(lineno,line))
+                warnings.warn('Skipping line number {}: "{}"'.format(lineno, line))
                 continue
             params[fields[0].strip()] = fields[1].strip()
 

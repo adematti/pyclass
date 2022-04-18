@@ -3,15 +3,13 @@ import sys
 import glob
 import shutil
 import sysconfig
-import setuptools # necessary for install_requires
+import setuptools  # necessary for install_requires
 
-from distutils.core import Command
 from numpy.distutils.core import Extension
 from numpy.distutils.command.build_clib import build_clib
 from numpy.distutils.command.build_ext import build_ext
 from numpy.distutils.command.sdist import sdist
 from numpy.distutils.command.develop import develop
-from numpy.distutils.command.build import build
 from distutils.command.clean import clean
 from Cython.Build import cythonize
 import numpy as np
@@ -33,11 +31,11 @@ def build_CLASS(prefix):
     """
     # latest class version and download link
     args = (package_basedir, package_basedir, class_version, os.path.abspath(prefix))
-    command = 'sh %s/depends/install_class.sh %s %s %s' %args
+    command = 'sh {}/depends/install_class.sh {} {} {}'.format(*args)
 
     ret = os.system(command)
     if ret != 0:
-        raise ValueError('could not build CLASS v%s' %class_version)
+        raise ValueError('could not build CLASS v{}'.format(class_version))
 
 
 class custom_build_clib(build_clib):
@@ -50,7 +48,7 @@ class custom_build_clib(build_clib):
         # create the CLASS build directory and save the include path
         self.class_build_dir = self.build_temp
         self.include_dirs.insert(0, os.path.join(self.class_build_dir, 'include'))
-        for external in ['heating','HyRec2020','RecfastCLASS']:
+        for external in ['heating', 'HyRec2020', 'RecfastCLASS']:
             self.include_dirs.insert(0, os.path.join(self.class_build_dir, 'external', external))
 
     def build_libraries(self, libraries):
@@ -59,7 +57,7 @@ class custom_build_clib(build_clib):
 
         # update the link objects with CLASS library
         link_objects = ['libclass.a']
-        #link_objects = list(glob(os.path.join(self.class_build_dir, '*', 'libclass.a')))
+        # link_objects = list(glob(os.path.join(self.class_build_dir, '*', 'libclass.a')))
 
         self.compiler.set_link_objects(link_objects)
         self.compiler.library_dirs.insert(0, os.path.join(self.class_build_dir, 'lib'))
@@ -69,15 +67,10 @@ class custom_build_clib(build_clib):
         libraries = [lib for lib in libraries if lib[0] != 'class']
 
         for (library, build_info) in libraries:
-
-            # check swig version
-            if library == 'gcl' and swig_needed:
-                check_swig_version()
-
             # update include dirs
             self.include_dirs += build_info.get('include_dirs', [])
 
-        super(custom_build_clib,self).build_libraries(libraries)
+        super(custom_build_clib, self).build_libraries(libraries)
 
 
 class custom_build_ext(build_ext):
@@ -86,7 +79,7 @@ class custom_build_ext(build_ext):
     def finalize_options(self):
         build_ext.finalize_options(self)
         self.include_dirs.append(np.get_include())
-        self.cython_directives = {'language_level':'3' if sys.version_info.major >= 3 else '2'}
+        self.cython_directives = {'language_level': '3' if sys.version_info.major >= 3 else '2'}
 
     def run(self):
         if self.distribution.has_c_libraries():
@@ -96,11 +89,11 @@ class custom_build_ext(build_ext):
             self.library_dirs += build_clib.compiler.library_dirs
 
         # copy data files from temp to pyclass package directory
-        for name in ['external','data']:
+        for name in ['external', 'data']:
             shutil.rmtree(os.path.join(self.build_lib, 'pyclass', name), ignore_errors=True)
             shutil.copytree(os.path.join(self.build_temp, name), os.path.join(self.build_lib, 'pyclass', name))
 
-        super(custom_build_ext,self).run()
+        super(custom_build_ext, self).run()
 
 
 class custom_sdist(sdist):
@@ -109,12 +102,12 @@ class custom_sdist(sdist):
         from six.moves.urllib import request
 
         # download CLASS
-        tarball_link = 'https://github.com/adematti/class_public/archive/v%s.tar.gz' % class_version
-        tarball_local = os.path.join('depends', 'class-v%s.tar.gz' % class_version)
+        tarball_link = 'https://github.com/adematti/class_public/archive/v{}.tar.gz'.format(class_version)
+        tarball_local = os.path.join('depends', 'class-v{}.tar.gz'.format(class_version))
         request.urlretrieve(tarball_link, tarball_local)
 
         # run the default
-        super(custom_sdist,self).run()
+        super(custom_sdist, self).run()
 
 
 class custom_develop(develop):
@@ -122,9 +115,9 @@ class custom_develop(develop):
     def run(self):
         self.run_command('build_ext')
         build_ext = self.get_finalized_command('build_ext')
-        for name in ['external','data']:
+        for name in ['external', 'data']:
             shutil.copytree(os.path.join(build_ext.build_temp, name), os.path.join(package_basedir, 'pyclass', name))
-        super(custom_develop,self).run()
+        super(custom_develop, self).run()
 
 
 class custom_clean(clean):
@@ -132,14 +125,14 @@ class custom_clean(clean):
     def run(self):
 
         # run the built-in clean
-        super(custom_clean,self).run()
+        super(custom_clean, self).run()
 
         # remove the CLASS tmp directories
         for dirpath in glob.glob(os.path.join('depends', 'tmp*')):
             if os.path.exists(dirpath) and os.path.isdir(dirpath):
                 shutil.rmtree(dirpath)
         # remove external and data directories set by develop
-        for name in ['external','data']:
+        for name in ['external', 'data']:
             shutil.rmtree(os.path.join(package_basedir, 'pyclass', name), ignore_errors=True)
         for fn in glob.glob(os.path.join(package_basedir, 'pyclass', 'binding.c*')):
             try: os.remove(fn)
@@ -153,9 +146,9 @@ def libclass_config():
 
 
 def find_compiler():
-    compiler = os.getenv('CC',None)
+    compiler = os.getenv('CC', None)
     if compiler is None:
-        compiler = sysconfig.get_config_vars().get('CC',None)
+        compiler = sysconfig.get_config_vars().get('CC', None)
     return compiler
 
 
@@ -173,12 +166,12 @@ def classy_extension_config():
     config['libraries'] = ['class', 'm']
 
     # determine if swig needs to be called
-    config['sources'] = [os.path.join('pyclass','binding.pyx')]
+    config['sources'] = [os.path.join('pyclass', 'binding.pyx')]
 
     os.environ.setdefault('CC', compiler)
     if compiler == 'clang':
         # see https://github.com/lesgourg/class_public/issues/405
-        os.environ.setdefault('OMPFLAG','-Xclang -fopenmp')
+        os.environ.setdefault('OMPFLAG', '-Xclang -fopenmp')
         config['extra_link_args'] += ['-lomp']
     else:
         config['extra_link_args'] += ['-lgomp']
@@ -193,24 +186,21 @@ def classy_extension_config():
 if __name__ == '__main__':
 
     from numpy.distutils.core import setup
-    setup(name='pyclass',
+
+    setup(name=package_basename,
           version=version,
-          author='Arnaud de Mattia, based on classylss of Nick Hand, Yu Feng',
+          author='Arnaud de Mattia, based on classylss by Nick Hand, Yu Feng',
           author_email='',
           description='Python binding of the CLASS CMB Boltzmann code',
           license='GPL3',
           url='http://github.com/adematti/pyclass',
           install_requires=['numpy', 'cython'],
-          ext_modules = cythonize([
-                        Extension(**classy_extension_config())
-          ]),
+          ext_modules=cythonize([Extension(**classy_extension_config())]),
           libraries=[libclass_config()],
-          cmdclass = {
-              'sdist': custom_sdist,
-              'build_clib': custom_build_clib,
-              'build_ext': custom_build_ext,
-              'develop': custom_develop,
-              'clean': custom_clean
-          },
-         packages=['pyclass']
-    )
+          cmdclass={'sdist': custom_sdist,
+                    'build_clib': custom_build_clib,
+                    'build_ext': custom_build_ext,
+                    'develop': custom_develop,
+                    'clean': custom_clean
+                    },
+          packages=[package_basename])

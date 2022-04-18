@@ -29,9 +29,9 @@ DEF _h_P_ = 6.62606896e-34
 # NOTE: using here up to scipy accuracy; replace by e.g. CLASS accuracy?
 msun = 1.98847 * 1e30 # kg
 # h^2 * kg/m^3
-rho_crit_kgph_per_mph3 = 3.0 * (100.*1e3/_Mpc_over_m_)**2 / (8 * np.pi * _G_)
+rho_crit_kgph_per_mph3 = 3.0 * (100. * 1e3 / _Mpc_over_m_)**2 / (8 * np.pi * _G_)
 # h^2 * kg/m^3 / msun / Mpc^3 = Msun/h / (Mpc/h)^3
-rho_crit_Msunph_per_Mpcph3 = rho_crit_kgph_per_mph3 / (10**10*msun) * _Mpc_over_m_**3
+rho_crit_Msunph_per_Mpcph3 = rho_crit_kgph_per_mph3 / (10**10 * msun) * _Mpc_over_m_**3
 
 DEF _MAX_NUMBER_OF_K_FILES_ = 30
 DEF _MAXTITLESTRINGLENGTH_ = 8000
@@ -42,7 +42,7 @@ NAN = float('NaN')
 
 
 class ClassRuntimeError(RuntimeError):
-    """Exception raised for an issue in CLASS."""
+    r"""Exception raised for an issue in CLASS."""
 
     def __init__(self, message=''):
         self.message = message
@@ -52,7 +52,7 @@ class ClassRuntimeError(RuntimeError):
 
 
 class ClassParserError(ValueError):
-    """Exception raised for an issue with the input parameters."""
+    r"""Exception raised for an issue with the input parameters."""
 
     def __init__(self, message, file_content):
         self.message = message
@@ -63,7 +63,7 @@ class ClassParserError(ValueError):
 
 
 class ClassBadValueError(ValueError):
-    """Raised when CLASS could not compute the cosmology with the provided parameters."""
+    r"""Raised when CLASS could not compute the cosmology with the provided parameters."""
 
 
 def val2str(val):
@@ -74,13 +74,13 @@ def val2str(val):
 
 
 def joinstr(s, *args):
-    """Separate ``args`` with commas if ``s`` is not empty."""
+    r"""Separate ``args`` with commas if ``s`` is not empty."""
     if s: return ','.join((s,) + args)
     return ','.join(args)
 
 
 def _bcast_dtype(*args):
-    """If input arrays are all float32, return float32; else float64."""
+    r"""If input arrays are all float32, return float32; else float64."""
     toret = np.result_type(*(getattr(arg, 'dtype', None) for arg in args))
     if not np.issubdtype(toret, np.floating):
         toret = np.float64
@@ -88,7 +88,7 @@ def _bcast_dtype(*args):
 
 
 def flatarray(func):
-    """Decorator that flattens input array and reshapes the output in the same form."""
+    r"""Decorator that flattens input array and reshapes the output in the same form."""
     @functools.wraps(func)
     def wrapper(self, *args, **kwargs):
         toret_dtype = _bcast_dtype(args[0])
@@ -115,7 +115,7 @@ def flatarray(func):
 
 
 def gridarray(func):
-    """
+    r"""
     Decorator that shapes output as ``(x1.size, x2.size, ...)`` for input arrays ``(x1, x2, ...)``.
     Dimensions corresponding to scalar inputs are squeezed.
     """
@@ -139,7 +139,7 @@ def gridarray(func):
 
 
 def _compile_params(params):
-    """Build up parameter dictionary: removes ``None``, enforce ``output`` (calculation being determined by :meth:`ClassEngine.compute()`)."""
+    r"""Build up parameter dictionary: removes ``None``, enforce ``output`` (calculation being determined by :meth:`ClassEngine.compute`)."""
     params = {**_EXTERNAL_FILES,**params}
     if 'verbose' in params:
         params.pop('verbose')
@@ -151,20 +151,20 @@ def _compile_params(params):
                 if name not in params: params[name] = 1
     for key in list(params.keys()):
         if params[key] is None: params.pop(key)
-    #params.setdefault('output',['dTk','vTk','tCl','pCl','lCl','mPk','nCl'])
-    params['output'] = ['dTk','vTk','tCl','pCl','lCl','mPk','nCl']
+    #params.setdefault('output',['dTk', 'vTk', 'tCl', 'pCl', 'lCl', 'mPk', 'nCl'])
+    params['output'] = ['dTk', 'vTk', 'tCl', 'pCl', 'lCl', 'mPk', 'nCl']
     return params
 
 
 cdef int index_symmetric_matrix(int i1, int i2, int N) nogil:
-    """CLASS macros, definded in common.h, l. 76."""
+    r"""CLASS macros, definded in common.h, l. 76."""
     if i1 <= i2:
-        return i2 + N*i1 - i1*(i1+1)//2
-    return i1 + N*i2 - i2*(i2+1)//2
+        return i2 + N*i1 - i1 * (i1 + 1) // 2
+    return i1 + N * i2 - i2 * (i2 + 1) // 2
 
 
 cdef int _build_file_content(params, file_content * fc) except -1:
-    """Dump parameter dictionary ``params`` to file structure ``fc``."""
+    r"""Dump parameter dictionary ``params`` to file structure ``fc``."""
     fc.size = 0
     fc.filename = <char*>malloc(sizeof(FileArg))
     strncpy(fc.filename, 'NOFILE', sizeof(FileArg))
@@ -186,7 +186,7 @@ cdef int _build_file_content(params, file_content * fc) except -1:
 
 
 cdef np.dtype _titles_to_dtype(char * titles, int remove_units=False):
-    """Turns CLASS ``titles`` char array into ``dtype``."""
+    r"""Turn CLASS ``titles`` char array into ``dtype``."""
     tmp = (<bytes>titles).decode()
     names = tmp.split('\t')[:-1]
     number_of_titles = len(names)
@@ -198,7 +198,7 @@ cdef np.dtype _titles_to_dtype(char * titles, int remove_units=False):
 
 
 def _build_task_dependency(tasks):
-    """
+    r"""
     Fill the task list with all the needed modules.
 
     .. warning::
@@ -258,7 +258,7 @@ ctypedef struct ready_flags:
 
 
 cdef class ClassEngine:
-    """CLASS engine class, which initialises CLASS from an input set of parameters, and runs calculations with :meth:`compute()`."""
+    r"""CLASS engine class, which initialises CLASS from an input set of parameters, and runs calculations with :meth:`compute`."""
     cdef precision pr
     cdef background ba
     cdef thermodynamics th
@@ -276,7 +276,7 @@ cdef class ClassEngine:
 
     def __init__(self, object params={}):
         r"""
-        Initialise ``ClassEngine``.
+        Initialize ``ClassEngine``.
 
         Parameters
         ----------
@@ -292,19 +292,19 @@ cdef class ClassEngine:
         memset(&self.ready, 0, sizeof(self.ready))
 
     def get_params(self):
-        """Return parameter dictionary as passed to CLASS."""
+        r"""Return parameter dictionary as passed to CLASS."""
         if not self.ready.fc: return {}
         lines = [(self.fc.name[i].decode(), self.fc.value[i].decode()) for i in range(self.fc.size)]
         return dict(lines)
 
     def get_params_str(self):
-        """Return parameter dictionary as string."""
+        r"""Return parameter dictionary as string."""
         if not self.ready.fc: return ''
-        lines = ['{} = {}'.format(self.fc.name[i].decode(),self.fc.value[i].decode()) for i in range(self.fc.size)]
+        lines = ['{} = {}'.format(self.fc.name[i].decode(), self.fc.value[i].decode()) for i in range(self.fc.size)]
         return '\n'.join(lines)
 
     def __dealloc__(self):
-        """Free C structures."""
+        r"""Free C structures."""
         if self.ready.fc: parser_free(&self.fc)
         if self.ready.sd: distortions_free(&self.sd)
         if self.ready.le: lensing_free(&self.le)
@@ -317,7 +317,7 @@ cdef class ClassEngine:
         if self.ready.ba: background_free(&self.ba)
 
     def compute(self, tasks):
-        """
+        r"""
         The main function, which executes the 'init' methods for all the desired modules, in analogy to ``main.c``.
 
         Parameters
@@ -340,8 +340,9 @@ cdef class ClassEngine:
         # situation.
         if 'input' in tasks and not self.ready.ip:
             if input_read_from_file(&self.fc, &self.pr, &self.ba, &self.th,
-                        &self.pt, &self.tr, &self.pm, &self.hr,
-                        &self.fo, &self.le, &self.sd, &self.op, errmsg) == _FAILURE_:
+                                    &self.pt, &self.tr, &self.pm, &self.hr,
+                                    &self.fo, &self.le, &self.sd, &self.op,
+                                    errmsg) == _FAILURE_:
                 raise ClassParserError(errmsg.decode(),self.get_params_str())
 
             # This part is done to list all the unread parameters, for debugging
@@ -403,20 +404,17 @@ cdef class ClassEngine:
             self.ready.ba = True
 
         if compute_thermodynamics:
-            if thermodynamics_init(&self.pr, &self.ba,
-                                   &self.th) == _FAILURE_:
+            if thermodynamics_init(&self.pr, &self.ba, &self.th) == _FAILURE_:
                 raise ClassBadValueError(self.th.error_message.decode())
             self.ready.th = True
 
         if compute_perturbations:
-            if perturbations_init(&self.pr, &self.ba,
-                            &self.th, &self.pt) == _FAILURE_:
+            if perturbations_init(&self.pr, &self.ba, &self.th, &self.pt) == _FAILURE_:
                 raise ClassBadValueError(self.pt.error_message.decode())
             self.ready.pt = True
 
         if compute_primordial:
-            if primordial_init(&self.pr, &self.pt,
-                               &self.pm) == _FAILURE_:
+            if primordial_init(&self.pr, &self.pt, &self.pm) == _FAILURE_:
                 raise ClassBadValueError(self.pm.error_message.decode())
             self.ready.pm = True
 
@@ -434,8 +432,8 @@ cdef class ClassEngine:
 
         if compute_harmonic:
             if harmonic_init(&self.pr, &self.ba, &self.pt,
-                            &self.pm, &self.fo, &self.tr,
-                            &self.hr) == _FAILURE_:
+                             &self.pm, &self.fo, &self.tr,
+                             &self.hr) == _FAILURE_:
                 raise ClassBadValueError(self.hr.error_message.decode())
             self.ready.hr = True
 
@@ -588,7 +586,7 @@ cdef class Background:
             N_{ur} = \Omega_{0,ur} / (7/8 (4/11)^{4/3} \Omega_{0,g}).
         """
         def __get__(self):
-            return self.Omega0_ur / (7./8.*(4./11)**(4./3.)*self.Omega0_g)
+            return self.Omega0_ur / (7. / 8. * (4. / 11)**(4. / 3.) * self.Omega0_g)
 
     property N_ncdm:
         r"""The number of distinguishable ncdm (massive neutrino) species."""
@@ -748,7 +746,7 @@ cdef class Background:
 
             \rho_{\mathrm{crit}} = \rho_\mathrm{tot} + \rho_k
         """
-        return -self.ba.K * (1. + z) ** 2 * self._RH0_ / (1 + z)**3
+        return -self.ba.K * (1. + z)**2 * self._RH0_ / (1 + z)**3
 
     @flatarray
     def rho_tot(self, z):
@@ -1075,12 +1073,12 @@ cdef class Thermodynamics:
     property theta_rec:
         r"""Sound horizon angle at recombination, equal to :math:`r_s(z_\mathrm{rec}) / D_A(z_\mathrm{rec})`, in radians."""
         def __get__(self):
-            return self.th.rs_rec/self.th.da_rec/(1.+self.th.z_rec)
+            return self.th.rs_rec / self.th.da_rec / (1. + self.th.z_rec)
 
     property theta_star:
         r"""Sound horizon angle at recombination, equal to :math:`r_s(z_\mathrm{\star}) / D_A(z_\mathrm{\star})`, in radians."""
         def __get__(self):
-            return self.th.rs_star/self.th.da_star/(1.+self.th.z_star)
+            return self.th.rs_star / self.th.da_star / (1. + self.th.z_star)
 
     def table(self):
         r"""
@@ -1139,7 +1137,7 @@ cdef class Primordial:
     property ln_1e10_A_s:
         r""":math:`\ln(10^{10}A_s)`, unitless."""
         def __get__(self):
-            return np.log(1e10*self.A_s)
+            return np.log(1e10 * self.A_s)
 
     property n_s:
         r"""Power-law index i.e. tilt of the primordial power spectrum, unitless."""
@@ -1179,13 +1177,13 @@ cdef class Primordial:
             else dictionary of primordial power spectra corresponding to the tuples of initial conditions.
         """
         # generate a new output array of the correct shape by broadcasting input arrays together
-        has_mode, index = Perturbations.get_index_md(self.pt,mode)
+        has_mode, index = Perturbations.get_index_md(self.pt, mode)
         cdef int index_md = index
-        cdef double *primordial_pk = <double*> malloc(self.pt.ic_size[index_md]*sizeof(double))
-        ic_keys = Perturbations.get_ic_keys(self.pt,index_md)
+        cdef double *primordial_pk = <double*> malloc(self.pt.ic_size[index_md] * sizeof(double))
+        ic_keys = Perturbations.get_ic_keys(self.pt, index_md)
         ic_num = len(ic_keys)
         ic_ic_num = self.pm.ic_ic_size[index_md]
-        cdef double[:,:] data = np.empty((k.size,ic_ic_num),dtype=np.float64)
+        cdef double[:, :] data = np.empty((k.size, ic_ic_num), dtype=np.float64)
         cdef int k_size = k.size
         cdef int ik
 
@@ -1193,9 +1191,9 @@ cdef class Primordial:
             with nogil:
                 for ik in range(k_size):
                     if k[ik] == 0: # forcefully set k == 0 to zero.
-                        data[ik,:] = 0.
-                    elif primordial_spectrum_at_k(self.pm, index_md, linear, k[ik] * self.ba.h, &(data[ik,0])) == _FAILURE_:
-                        data[ik,:] = NAN
+                        data[ik, :] = 0.
+                    elif primordial_spectrum_at_k(self.pm, index_md, linear, k[ik] * self.ba.h, &(data[ik, 0])) == _FAILURE_:
+                        data[ik, :] = NAN
             # linear: all pks (contrary to cross-terms in logarithmic mode)
             data = np.asarray(data) * self.ba.h**3
         else:
@@ -1204,12 +1202,12 @@ cdef class Primordial:
         if len(ic_keys) > 1:
             toret = {}
             for index_ic1 in range(ic_num):
-                for index_ic2 in range(index_ic1,ic_num):
-                    ic_key = '{}_{}'.format(ic_keys[index_ic1],ic_keys[index_ic2])
-                    index_ic1_ic2 = index_symmetric_matrix(index_ic1,index_ic2,ic_num)
-                    toret[ic_key] = np.asarray(data[:,index_ic1_ic2])
+                for index_ic2 in range(index_ic1, ic_num):
+                    ic_key = '{}_{}'.format(ic_keys[index_ic1], ic_keys[index_ic2])
+                    index_ic1_ic2 = index_symmetric_matrix(index_ic1, index_ic2, ic_num)
+                    toret[ic_key] = np.asarray(data[:, index_ic1_ic2])
         else:
-            toret = np.asarray(data[:,0])
+            toret = np.asarray(data[:, 0])
         return toret
 
     def table(self):
@@ -1263,7 +1261,7 @@ cdef class Perturbations:
     property k_max_for_pk:
         r"""The input parameter specifying the maximum ``k`` value to compute spectra for, in :math:`h \mathrm{Mpc}^{-1}`."""
         def __get__(self):
-            return self.pt.k_max_for_pk/self.ba.h
+            return self.pt.k_max_for_pk / self.ba.h
 
     property z_max_for_pk:
         r"""The input parameter specifying the maximum redshift measured for power spectra, unitless."""
@@ -1295,7 +1293,7 @@ cdef class Perturbations:
             return self.pt.has_tensors == _TRUE_
 
     def table(self, mode='scalar'):
-        """
+        r"""
         Return scalar, vector and/or tensor perturbations as arrays for requested k-values.
 
         .. note::
@@ -1314,7 +1312,7 @@ cdef class Perturbations:
         """
         cdef char titles[_MAXTITLESTRINGLENGTH_]
         cdef double * data[_MAX_NUMBER_OF_K_FILES_]
-        modes = ['scalar','vector','tensor']
+        modes = ['scalar', 'vector', 'tensor']
         if mode not in modes:
             raise ClassBadValueError('mode should be one of {}'.format(mode))
         if mode == 'scalar' and self.pt.has_scalars:
@@ -1336,13 +1334,13 @@ cdef class Perturbations:
         toret = []
         if ntitles:
             for ik in range(self.pt.k_output_values_num):
-                timesteps = sizes[ik]//ntitles
-                toret.append(np.array(<double[:timesteps,:ntitles]> data[ik],dtype=dtype))
+                timesteps = sizes[ik] // ntitles
+                toret.append(np.array(<double[:timesteps, :ntitles]> data[ik], dtype=dtype))
         return toret
 
     @staticmethod
     cdef get_ic_keys(perturbations *pt, int index_md):
-        """Helper routine that returns initial condition names."""
+        r"""Helper routine that returns initial condition names."""
         cdef FileName ic_suffix
         cdef char ic_info[_LINE_LENGTH_MAX_]
 
@@ -1357,16 +1355,14 @@ cdef class Perturbations:
 
     @staticmethod
     cdef get_index_md(perturbations * pt, mode):
-        """Helper routine that returns indices of 'scalar', 'vector' or 'tensor' perturbations."""
-        has_flags = {
-            'scalar': (pt.has_scalars, pt.index_md_scalars == _TRUE_),
-            'vector': (pt.has_vectors, pt.index_md_vectors == _TRUE_),
-            'tensor': (pt.has_tensors, pt.index_md_tensors == _TRUE_)
-        }
+        r"""Helper routine that returns indices of 'scalar', 'vector' or 'tensor' perturbations."""
+        has_flags = {'scalar': (pt.has_scalars, pt.index_md_scalars == _TRUE_),
+                     'vector': (pt.has_vectors, pt.index_md_vectors == _TRUE_),
+                     'tensor': (pt.has_tensors, pt.index_md_tensors == _TRUE_)}
         modes = list(has_flags.keys())
 
         if mode not in modes:
-            raise ClassBadValueError("mode should be one of {}".format(modes))
+            raise ClassBadValueError('mode must be one of {}'.format(modes))
         return has_flags[mode]
 
 
@@ -1431,9 +1427,9 @@ cdef class Transfer:
         if not has_mode:
             raise ClassRuntimeError('mode {} has not been calculated'.format(mode))
         k_size = self.pt.k_size[index_md]
-        ic_keys = Perturbations.get_ic_keys(self.pt,index_md)
+        ic_keys = Perturbations.get_ic_keys(self.pt, index_md)
 
-        cdef np.ndarray data = np.zeros((len(ic_keys),k_size), dtype=dtype)
+        cdef np.ndarray data = np.zeros((len(ic_keys), k_size), dtype=dtype)
 
         if perturbations_output_data(self.ba, self.pt, outf, <double> z, len(dtype.fields), <double*> data.data) == _FAILURE_:
             raise ClassRuntimeError(self.pt.error_message.decode())
@@ -1449,7 +1445,7 @@ cdef class Transfer:
 
 cdef class Harmonic:
 
-    r"""Wrapper of the ``Harmonic` module in CLASS."""
+    r"""Wrapper of the ``Harmonic`` module in CLASS."""
 
     cdef ClassEngine engine
     cdef harmonic * hr
@@ -1474,7 +1470,7 @@ cdef class Harmonic:
         self.pt = &self.engine.pt
 
     def unlensed_table(self, ellmax=-1, of=None):
-        """
+        r"""
         Return table of unlensed :math:`C_{\ell}` (i.e. CMB power spectra without lensing and lensing potentials), unitless.
 
         Parameters
@@ -1496,30 +1492,29 @@ cdef class Harmonic:
         the lensing potential ``pp`` spectrum).
         Usually multiplied by CMB temperature in :math:`\mu K`.
         """
-        cdef double *rcl = <double*> malloc(self.hr.ct_size*sizeof(double))
+        cdef double *rcl = <double*> malloc(self.hr.ct_size * sizeof(double))
 
         # Quantities for tensor modes
-        cdef double **cl_md = <double**> malloc(self.hr.md_size*sizeof(double*))
+        cdef double **cl_md = <double**> malloc(self.hr.md_size * sizeof(double*))
         for index_md in range(self.hr.md_size):
-            cl_md[index_md] = <double*> malloc(self.hr.ct_size*sizeof(double))
+            cl_md[index_md] = <double*> malloc(self.hr.ct_size * sizeof(double))
 
         # Quantities for isocurvature modes
-        cdef double **cl_md_ic = <double**> malloc(self.hr.md_size*sizeof(double*))
+        cdef double **cl_md_ic = <double**> malloc(self.hr.md_size * sizeof(double*))
         for index_md in range(self.hr.md_size):
-            cl_md_ic[index_md] = <double*> malloc(self.hr.ct_size*self.hr.ic_ic_size[index_md]*sizeof(double))
+            cl_md_ic[index_md] = <double*> malloc(self.hr.ct_size * self.hr.ic_ic_size[index_md] * sizeof(double))
 
         #if of is not None:
         #    if any('p' in p for p in of):
         #        self.engine.compute('lensing')
 
-        has_flags = [
-            (self.hr.has_tt, self.hr.index_ct_tt, 'tt'),
-            (self.hr.has_ee, self.hr.index_ct_ee, 'ee'),
-            (self.hr.has_bb, self.hr.index_ct_bb, 'bb'),
-            (self.hr.has_te, self.hr.index_ct_te, 'te'),
-            (self.hr.has_pp, self.hr.index_ct_pp, 'pp'),
-            (self.hr.has_tp, self.hr.index_ct_tp, 'tp'),
-            (self.hr.has_ep, self.hr.index_ct_ep, 'ep')]
+        has_flags = [(self.hr.has_tt, self.hr.index_ct_tt, 'tt'),
+                     (self.hr.has_ee, self.hr.index_ct_ee, 'ee'),
+                     (self.hr.has_bb, self.hr.index_ct_bb, 'bb'),
+                     (self.hr.has_te, self.hr.index_ct_te, 'te'),
+                     (self.hr.has_pp, self.hr.index_ct_pp, 'pp'),
+                     (self.hr.has_tp, self.hr.index_ct_tp, 'tp'),
+                     (self.hr.has_ep, self.hr.index_ct_ep, 'ep')]
         indices = {}
         for flag, index, name in has_flags:
             if of is None:
@@ -1530,23 +1525,23 @@ cdef class Harmonic:
             indices[name] = index
 
         names = list(indices.keys())
-        dtype = np.dtype([('ell',np.int64)] + [(str(name),np.float64) for name in names])
+        dtype = np.dtype([('ell', np.int64)] + [(str(name), np.float64) for name in names])
         if ellmax < 0:
             ellmax = self.hr.l_max_tot + 1 + ellmax
             if self.le.has_lensed_cls:
                 ellmax -= self.pr.delta_l_max
         if ellmax > self.hr.l_max_tot:
-            raise ClassRuntimeError('You asked for ellmax = {:d}, greater than calculated ellmax = {:d}'.format(ellmax,self.hr.l_max_tot))
-        toret = np.empty(ellmax+1,dtype=dtype)
+            raise ClassRuntimeError('You asked for ellmax = {:d}, greater than calculated ellmax = {:d}'.format(ellmax, self.hr.l_max_tot))
+        toret = np.empty(ellmax + 1,dtype=dtype)
         toret[:2] = 0
         # Recover for each ell the information from CLASS
 
-        for ell from 2 <= ell < ellmax+1:
+        for ell from 2 <= ell < ellmax + 1:
             if harmonic_cl_at_l(self.hr, ell, rcl, cl_md, cl_md_ic) == _FAILURE_:
                 raise ClassRuntimeError(self.hr.error_message.decode())
             for name in names:
                 toret[name][ell] = rcl[indices[name]]
-        toret['ell'] = np.arange(ellmax+1)
+        toret['ell'] = np.arange(ellmax + 1)
         free(rcl)
         for index_md in range(self.hr.md_size):
             free(cl_md[index_md])
@@ -1556,7 +1551,7 @@ cdef class Harmonic:
         return toret
 
     def lensed_table(self, ellmax=-1, of=None):
-        """
+        r"""
         Return table of lensed :math:`C_{\ell}`, unitless.
 
         Parameters
@@ -1574,15 +1569,14 @@ cdef class Harmonic:
         """
         self.engine.compute('lensing')
 
-        cdef double *lcl = <double*> malloc(self.le.lt_size*sizeof(double))
+        cdef double *lcl = <double*> malloc(self.le.lt_size * sizeof(double))
 
-        has_flags = [
-                (self.le.has_tt, self.le.index_lt_tt, 'tt'),
-                (self.le.has_ee, self.le.index_lt_ee, 'ee'),
-                (self.le.has_bb, self.le.index_lt_bb, 'bb'),
-                (self.le.has_pp, self.le.index_lt_pp, 'pp'),
-                (self.le.has_te, self.le.index_lt_te, 'te'),
-                (self.le.has_tp, self.le.index_lt_tp, 'tp')]
+        has_flags = [(self.le.has_tt, self.le.index_lt_tt, 'tt'),
+                     (self.le.has_ee, self.le.index_lt_ee, 'ee'),
+                     (self.le.has_bb, self.le.index_lt_bb, 'bb'),
+                     (self.le.has_pp, self.le.index_lt_pp, 'pp'),
+                     (self.le.has_te, self.le.index_lt_te, 'te'),
+                     (self.le.has_tp, self.le.index_lt_tp, 'tp')]
         indices = {}
         for flag, index, name in has_flags:
             if of is None:
@@ -1593,36 +1587,36 @@ cdef class Harmonic:
             indices[name] = index
 
         names = list(indices.keys())
-        dtype = np.dtype([('ell',np.int64)] + [(str(name),np.float64) for name in names])
+        dtype = np.dtype([('ell', np.int64)] + [(str(name), np.float64) for name in names])
         if ellmax < 0:
             ellmax = self.le.l_lensed_max + 1 + ellmax
         if ellmax > self.le.l_lensed_max:
-            raise ClassRuntimeError('You asked for ellmax = {:d}, greater than calculated ellmax = {:d}'.format(ellmax,self.le.l_lensed_max))
+            raise ClassRuntimeError('You asked for ellmax = {:d}, greater than calculated ellmax = {:d}'.format(ellmax, self.le.l_lensed_max))
         toret = np.empty(ellmax+1,dtype=dtype)
         toret[:2] = 0
         # Recover for each ell the information from CLASS
 
-        for ell from 2 <= ell < ellmax+1:
+        for ell from 2 <= ell < ellmax + 1:
             if lensing_cl_at_l(self.le, ell, lcl) == _FAILURE_:
                 raise ClassRuntimeError(self.le.error_message.decode())
             for name in names:
                 toret[name][ell] = lcl[indices[name]]
-        toret['ell'] = np.arange(ellmax+1)
+        toret['ell'] = np.arange(ellmax + 1)
 
         free(lcl)
         return toret
 
     def unlensed_cl(self, ellmax=-1):
-        """Return unlensed :math:`C_{\ell}` ['tt','ee','bb','te'], unitless."""
-        return self.unlensed_table(ellmax=ellmax,of=['tt','ee','bb','te'])
+        r"""Return unlensed :math:`C_{\ell}` ['tt', 'ee', 'bb', 'te'], unitless."""
+        return self.unlensed_table(ellmax=ellmax, of=['tt', 'ee', 'bb', 'te'])
 
     def lens_potential_cl(self, ellmax=-1):
-        """Return potential :math:`C_{\ell}` ['pp','tp','ep'], unitless."""
-        return self.unlensed_table(ellmax=ellmax,of=['pp','tp','ep'])
+        r"""Return potential :math:`C_{\ell}` ['pp', 'tp', 'ep'], unitless."""
+        return self.unlensed_table(ellmax=ellmax, of=['pp', 'tp', 'ep'])
 
     def lensed_cl(self, ellmax=-1):
-        """Return lensed :math:`C_{\ell}` ['tt','ee','bb','te'], unitless."""
-        return self.lensed_table(ellmax=ellmax,of=['tt','ee','bb','te'])
+        r"""Return lensed :math:`C_{\ell}` ['tt', 'ee', 'bb', 'te'], unitless."""
+        return self.lensed_table(ellmax=ellmax, of=['tt', 'ee', 'bb', 'te'])
 
 
 cdef class Fourier:
@@ -1703,28 +1697,28 @@ cdef class Fourier:
             Array of shape ``(r.size, z.size)`` (null dimensions are squeezed).
         """
         cdef int r_size = r.size, z_size = z.size
-        cdef double[:,:] toret = np.empty((r_size,z_size), dtype=np.float64)
+        cdef double[:,:] toret = np.empty((r_size, z_size), dtype=np.float64)
         cdef int index = self._index_pk_of(of)
         cdef int ir, iz
         with nogil:
             for ir in range(r_size):
                 for iz in range(z_size):
-                    if fourier_sigmas_at_z(self.pr, self.ba, self.fo, r[ir]/self.ba.h, z[iz], index, out_sigma, &(toret[ir,iz])) == _FAILURE_:
+                    if fourier_sigmas_at_z(self.pr, self.ba, self.fo, r[ir]/self.ba.h, z[iz], index, out_sigma, &(toret[ir, iz])) == _FAILURE_:
                         toret[ir,iz] = NAN
         return np.asarray(toret)
 
     @flatarray
     def sigma8_z(self, z, of='delta_m'):
-        """Return the r.m.s. of `of` perturbations in sphere of :math:`8 \mathrm{Mpc}/h`."""
+        r"""Return the r.m.s. of `of` perturbations in sphere of :math:`8 \mathrm{Mpc}/h`."""
         return self.sigma_rz(8., z, of=of)
 
     def _index_pk_of(self, of='delta_m'):
-        """Helper routine that returns index of `of` power spectrum."""
+        r"""Helper routine that returns index of `of` power spectrum."""
         of = self._check_pk_of(of)
-        return {'delta_m':self.fo.index_pk_m,'delta_cb':self.fo.index_pk_cb}[of]
+        return {'delta_m':self.fo.index_pk_m, 'delta_cb':self.fo.index_pk_cb}[of]
 
     def _check_pk_of(self, of='delta_m', silent=True):
-        """Helper routine that checks requested perturbed quantity `of` has been calculated."""
+        r"""Helper routine that checks requested perturbed quantity `of` has been calculated."""
         if of == 'delta_cb':
             if not self.has_pk_cb:
                 if not silent:
@@ -1733,19 +1727,20 @@ cdef class Fourier:
         return of
 
     def _use_pk_nonlinear(self, nonlinear=False):
-        """Helper routine that returns linear or nonlinear power spectrum flag."""
+        r"""Helper routine that returns linear or nonlinear power spectrum flag."""
         if (self.fo.has_pk_m == _FALSE_):
             raise ClassRuntimeError('No power spectrum computed. You must add mPk to the list of outputs.')
         if nonlinear:
             if self.has_nonlinear:
                 return pk_nonlinear
-            raise ClassRuntimeError("You ask CLASS to return an array of nonlinear P(k,z) values, "
-                    "but the input parameters sent to CLASS did not require any non-linear P(k,z) calculations; add e.g. 'halofit' or 'HMcode' in 'nonlinear'")
+            raise ClassRuntimeError('You ask CLASS to return an array of nonlinear P(k,z) values, '
+                                    'but the input parameters sent to CLASS did not require any non-linear P(k,z) calculations; '
+                                    'add e.g. "halofit" or "HMcode" in "nonlinear"')
         return pk_linear
 
     @gridarray
     def pk_kz(self, np.ndarray k, np.ndarray z, nonlinear=False, of='delta_m'):
-        """
+        r"""
         Return power spectrum, in :math:`(\mathrm{Mpc}/h)^{3}`.
 
         Parameters
@@ -1766,15 +1761,15 @@ cdef class Fourier:
         Returns
         -------
         pk : numpy.ndarray
-            Power spectrum array of shape (len(k),len(z)).
+            Power spectrum array of shape (len(k), len(z)).
         """
         cdef pk_outputs is_nonlinear = self._use_pk_nonlinear(nonlinear)
         # internally class uses 1 / Mpc
 
-        k_size,z_size = k.size,z.size
+        k_size, z_size = k.size, z.size
         cdef np.ndarray kh = k * self.ba.h
-        cdef np.ndarray pk = np.empty(k_size*z_size, dtype=np.float64)
-        cdef np.ndarray pk_cb = np.empty(k_size*z_size, dtype=np.float64)
+        cdef np.ndarray pk = np.empty(k_size * z_size, dtype=np.float64)
+        cdef np.ndarray pk_cb = np.empty(k_size * z_size, dtype=np.float64)
 
         fourier_pks_at_kvec_and_zvec(self.ba, self.fo, is_nonlinear, <double*> kh.data, k_size, <double*> z.data, z_size, <double*> pk.data, <double*> pk_cb.data)
 
@@ -1784,7 +1779,7 @@ cdef class Fourier:
 
     @cython.boundscheck(False)
     def table(self, nonlinear=False, of='delta_m'):
-        """
+        r"""
         Return power spectrum table, in :math:`(\mathrm{Mpc}/h)^{3}`.
 
         Parameters
@@ -1796,7 +1791,7 @@ cdef class Fourier:
         of : string, tuple, default='delta_m'
             Perturbed quantities.
             Either 'delta_m' for matter perturbations or 'delta_cb' for cold dark matter + baryons perturbations will use precomputed spectra.
-            Else, e.g. ('delta_m','theta_cb') for the cross matter density - cold dark matter + baryons velocity power spectra, are computed on-the-fly.
+            Else, e.g. ('delta_m', 'theta_cb') for the cross matter density - cold dark matter + baryons velocity power spectra, are computed on-the-fly.
 
         Returns
         -------
@@ -1807,25 +1802,25 @@ cdef class Fourier:
             Redshifts.
 
         pk : numpy.ndarray
-            Power spectrum array of shape (len(k),len(z)).
+            Power spectrum array of shape (len(k), len(z)).
         """
-        k = np.array(<double[:self.fo.k_size]> self.fo.k,dtype=np.float64)
-        cdef double[:] z = np.empty(self.fo.ln_tau_size,dtype=np.float64)
-        cdef double[:,:] pk_at_k_z = np.empty((self.fo.k_size, self.fo.ln_tau_size),dtype=np.float64)
+        k = np.array(<double[:self.fo.k_size]> self.fo.k, dtype=np.float64)
+        cdef double[:] z = np.empty(self.fo.ln_tau_size, dtype=np.float64)
+        cdef double[:,:] pk_at_k_z = np.empty((self.fo.k_size, self.fo.ln_tau_size), dtype=np.float64)
         cdef pk_outputs is_nonlinear = self._use_pk_nonlinear(nonlinear)
         cdef int index_k, index_tau
         cdef double z_max_nonlinear, z_max_requested
 
         cdef int index_ic1, index_ic2, index_ic1_ic1, index_ic1_ic2, index_ic2_ic2, index_tp1, index_tp2, ntheta, last_index #junk
-        cdef double *primordial_pk = <double*> malloc(self.fo.ic_ic_size*sizeof(double))
+        cdef double *primordial_pk = <double*> malloc(self.fo.ic_ic_size * sizeof(double))
         cdef double [:] pvecback
         cdef double ** sources = self.pt.sources[self.fo.index_md_scalars]
         cdef double source_tp1_ic1=0, source_tp2_ic1=0, source_tp1_ic2=0, source_tp2_ic2=0, primordial_pk_ic1_ic2
         cdef double sumpk, factor_z, factor_k
 
         if self.fo.ln_tau_size == 1:
-            raise ClassRuntimeError("You ask CLASS to return an array of P(k,z) values, but the input parameters sent to CLASS did not require "
-                                    "any P(k,z) calculations for z>0; pass either a list of z in 'z_pk' or one non-zero value in 'z_max_pk'")
+            raise ClassRuntimeError('You ask CLASS to return an array of P(k,z) values, but the input parameters sent to CLASS did not require '
+                                    'any P(k,z) calculations for z>0; pass either a list of z in "z_pk" or one non-zero value in "z_max_pk"')
 
         for index_tau in range(self.fo.ln_tau_size):
             if index_tau == self.fo.ln_tau_size-1:
@@ -1838,15 +1833,15 @@ cdef class Fourier:
                 raise ClassRuntimeError(self.ba.error_message.decode())
             z_max_requested = z[0]
             if ((self.fo.tau_size - self.fo.ln_tau_size) < self.fo.index_tau_min_nl):
-                raise ClassRuntimeError("table() is trying to return P(k,z) up to z_max={:.e} (to encompass your requested maximum value of z); "
-                "but the input parameters sent to CLASS were such that the non-linear P(k,z) could only be consistently computed up to z={:.e}; "
-                "increase the input parameter 'P_k_max_h/Mpc' or 'P_k_max_1/Mpc', or increase the precision parameters 'halofit_min_k_max' and/or "
-                "'hmcode_min_k_max', or decrease your requested z_max".format(z_max_requested, z_max_nonlinear))
+                raise ClassRuntimeError('table() is trying to return P(k,z) up to z_max={:.e} (to encompass your requested maximum value of z); '
+                                        'but the input parameters sent to CLASS were such that the non-linear P(k,z) could only be consistently computed up to z={:.e}; '
+                                        'increase the input parameter "P_k_max_h/Mpc" or "P_k_max_1/Mpc", or increase the precision parameters "halofit_min_k_max" and/or '
+                                        '"hmcode_min_k_max", or decrease your requested z_max'.format(z_max_requested, z_max_nonlinear))
 
         if not isinstance(of,(tuple,list)):
             of = (of,of)
 
-        if of[0] == of[1] and of[0] in ['delta_m','delta_cb']:
+        if of[0] == of[1] and of[0] in ['delta_m', 'delta_cb']:
             index_tp1 = self._index_pk_of(of[0])
             with nogil:
                 for index_tau in range(self.fo.ln_tau_size):
@@ -1862,13 +1857,11 @@ cdef class Fourier:
         else:
             primordial_pk = <double*> malloc(self.fo.ic_ic_size*sizeof(double))
             pvecback = np.empty(self.ba.bg_size, dtype=np.float64)
-            indices = {
-            'delta_m':self.pt.index_tp_delta_m,
-            'delta_cb':self.pt.index_tp_delta_cb if self.pt.has_source_delta_cb == _TRUE_ else self.pt.index_tp_delta_m,
-            'theta_m':self.pt.index_tp_theta_m,
-            'theta_cb':self.pt.index_tp_theta_cb if self.pt.has_source_theta_cb == _TRUE_ else self.pt.index_tp_theta_m
-            }
-            index_tp1,index_tp2 = indices[of[0]],indices[of[1]]
+            indices = {'delta_m':self.pt.index_tp_delta_m,
+                       'delta_cb':self.pt.index_tp_delta_cb if self.pt.has_source_delta_cb == _TRUE_ else self.pt.index_tp_delta_m,
+                       'theta_m':self.pt.index_tp_theta_m,
+                       'theta_cb':self.pt.index_tp_theta_cb if self.pt.has_source_theta_cb == _TRUE_ else self.pt.index_tp_theta_m}
+            index_tp1,index_tp2 = indices[of[0]], indices[of[1]]
             ntheta = sum(of_.startswith('theta_') for of_ in of)
 
             with nogil:
@@ -1876,39 +1869,39 @@ cdef class Fourier:
                     if ntheta > 0:
                         if background_at_z(self.ba, z[index_tau], long_info, inter_normal, &last_index, &pvecback[0]) == _FAILURE_:
                             raise ClassRuntimeError(self.ba.error_message.decode())
-                        factor_z = 1./(-pvecback[self.ba.index_bg_H]*pvecback[self.ba.index_bg_a])**ntheta
+                        factor_z = 1. / (-pvecback[self.ba.index_bg_H]*pvecback[self.ba.index_bg_a])**ntheta
                     else:
                         factor_z = 1.
                     for index_k in range(self.fo.k_size):
-                        factor_k = 2.*_PI_*_PI_/exp(3.*self.fo.ln_k[index_k])
-                        if primordial_spectrum_at_k(self.pm,self.fo.index_md_scalars,logarithmic,self.fo.ln_k[index_k],primordial_pk) == _FAILURE_:
+                        factor_k = 2. * _PI_ * _PI_ / exp(3. * self.fo.ln_k[index_k])
+                        if primordial_spectrum_at_k(self.pm, self.fo.index_md_scalars, logarithmic, self.fo.ln_k[index_k], primordial_pk) == _FAILURE_:
                             raise ClassRuntimeError(self.pm.error_message.decode())
                         sumpk = 0.
                         for index_ic1 in range(self.fo.ic_size):
-                            index_ic1_ic1 = index_symmetric_matrix(index_ic1,index_ic1,self.fo.ic_size)
-                            if fourier_get_source(self.ba,self.pt,self.fo,index_k,index_ic1,index_tp1,index_tau,sources,&source_tp1_ic1) == _FAILURE_:
+                            index_ic1_ic1 = index_symmetric_matrix(index_ic1, index_ic1, self.fo.ic_size)
+                            if fourier_get_source(self.ba, self.pt, self.fo, index_k, index_ic1, index_tp1, index_tau, sources, &source_tp1_ic1) == _FAILURE_:
                                 raise ClassRuntimeError(self.fo.error_message.decode())
                             if index_tp2 != index_tp1:
-                                if fourier_get_source(self.ba,self.pt,self.fo,index_k,index_ic1,index_tp2,index_tau,sources,&source_tp2_ic1) == _FAILURE_:
+                                if fourier_get_source(self.ba, self.pt, self.fo, index_k, index_ic1, index_tp2, index_tau, sources, &source_tp2_ic1) == _FAILURE_:
                                     raise ClassRuntimeError(self.fo.error_message.decode())
                             else:
                                 source_tp2_ic1 = source_tp1_ic1
-                            sumpk += factor_k*source_tp1_ic1*source_tp2_ic1*exp(primordial_pk[index_ic1_ic1])
+                            sumpk += factor_k * source_tp1_ic1 * source_tp2_ic1 * exp(primordial_pk[index_ic1_ic1])
                             for index_ic2 in range(index_ic1+1,self.fo.ic_size):
-                                index_ic1_ic2 = index_symmetric_matrix(index_ic1,index_ic2,self.fo.ic_size)
-                                index_ic2_ic2 = index_symmetric_matrix(index_ic2,index_ic2,self.fo.ic_size)
+                                index_ic1_ic2 = index_symmetric_matrix(index_ic1, index_ic2,self.fo.ic_size)
+                                index_ic2_ic2 = index_symmetric_matrix(index_ic2, index_ic2,self.fo.ic_size)
                                 if self.fo.is_non_zero[index_ic1_ic2] == _TRUE_:
-                                    if fourier_get_source(self.ba,self.pt,self.fo,index_k,index_ic2,index_tp1,index_tau,sources,&source_tp1_ic2) == _FAILURE_:
+                                    if fourier_get_source(self.ba, self.pt, self.fo, index_k, index_ic2, index_tp1, index_tau, sources, &source_tp1_ic2) == _FAILURE_:
                                         raise ClassRuntimeError(self.fo.error_message.decode())
                                     if index_tp2 != index_tp1:
-                                        if fourier_get_source(self.ba,self.pt,self.fo,index_k,index_ic2,index_tp2,index_tau,sources,&source_tp2_ic2) == _FAILURE_:
+                                        if fourier_get_source(self.ba, self.pt, self.fo, index_k, index_ic2, index_tp2, index_tau, sources, &source_tp2_ic2) == _FAILURE_:
                                             raise ClassRuntimeError(self.fo.error_message.decode())
                                         else:
                                             source_tp2_ic2 = source_tp1_ic2
-                                    primordial_pk_ic1_ic2 = primordial_pk[index_ic1_ic2]*sqrt(primordial_pk[index_ic1_ic1]*primordial_pk[index_ic2_ic2])
-                                    sumpk += factor_k*(source_tp1_ic1*source_tp2_ic2 + source_tp1_ic2*source_tp2_ic1)*primordial_pk_ic1_ic2
-                        pk_at_k_z[index_k, index_tau] = factor_z*sumpk
+                                    primordial_pk_ic1_ic2 = primordial_pk[index_ic1_ic2] * sqrt(primordial_pk[index_ic1_ic1] * primordial_pk[index_ic2_ic2])
+                                    sumpk += factor_k * (source_tp1_ic1 * source_tp2_ic2 + source_tp1_ic2 * source_tp2_ic1) * primordial_pk_ic1_ic2
+                        pk_at_k_z[index_k, index_tau] = factor_z * sumpk
 
             free(primordial_pk)
 
-        return np.asarray(k)/self.ba.h, np.asarray(z), np.asarray(pk_at_k_z)*self.ba.h**3
+        return np.asarray(k) / self.ba.h, np.asarray(z), np.asarray(pk_at_k_z) * self.ba.h**3
