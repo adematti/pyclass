@@ -6,7 +6,8 @@ UNPACK=tmp-class-v$(CLASS_VERSION)
 SRC=$(UNPACK)/class_public-$(CLASS_VERSION)
 
 $(TARBALL):
-	curl -fsSL https://github.com/adematti/class_public/archive/v$(CLASS_VERSION).tar.gz > $(TARBALL)
+	curl -fsSL https://github.com/adematti/class_public/archive/refs/tags/v$(CLASS_VERSION).tar.gz > $(TARBALL)
+	#wget -O $(TARBALL) https://github.com/adematti/class_public/archive/refs/tags/v$(CLASS_VERSION).tar.gz
 
 $(SRC): $(TARBALL)
 	mkdir -p $(UNPACK)

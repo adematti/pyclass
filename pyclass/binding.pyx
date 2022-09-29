@@ -1144,6 +1144,11 @@ cdef class Primordial:
         def __get__(self):
             return self.pm.n_s
 
+    property alpha_s:
+        r"""Running of the spectral index at :math:`k_\mathrm{pivot}`, unitless."""
+        def __get__(self):
+            return self.pm.alpha_s
+
     property k_pivot:
         r"""Primordial power spectrum pivot scale, where the primordial power is equal to :math:`A_{s}`, in :math:`h/\mathrm{Mpc}`."""
         def __get__(self):
