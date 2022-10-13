@@ -343,7 +343,7 @@ cdef class ClassEngine:
                                     &self.pt, &self.tr, &self.pm, &self.hr,
                                     &self.fo, &self.le, &self.sd, &self.op,
                                     errmsg) == _FAILURE_:
-                raise ClassParserError(errmsg.decode(),self.get_params_str())
+                raise ClassParserError(errmsg.decode(), self.get_params_str())
 
             # This part is done to list all the unread parameters, for debugging
             problem_flag = False
@@ -1484,7 +1484,7 @@ cdef class Harmonic:
             Maximum :math:`\ell` desired. If negative, is relative to the requested maximum `\ell`.
 
         of : list, default=None
-            List of outputs, ['tt','ee','bb','te','pp','tp','ep']. If ``None``, return all computed outputs.
+            List of outputs, ['tt', 'ee', 'bb', 'te', 'pp', 'tp', 'ep']. If ``None``, return all computed outputs.
 
         Returns
         -------
@@ -1493,7 +1493,7 @@ cdef class Harmonic:
 
         Note
         ----
-        Normalisation is :math:`C_{\ell}` rather than :math:`\ell(\ell+1)C_{\ell}/(2\pi)` (or :math:`\ell^{2}(\ell+1)^{2}/(2\pi)` in the case of
+        Normalisation is :math:`C_{\ell}` rather than :math:`\ell(\ell+1)/(2\pi) C_{\ell}` (or :math:`\ell^{2}(\ell+1)^{2}/(2\pi) C_{\ell}` in the case of
         the lensing potential ``pp`` spectrum).
         Usually multiplied by CMB temperature in :math:`\mu K`.
         """
@@ -1565,7 +1565,7 @@ cdef class Harmonic:
             Maximum :math:`\ell` desired. If negative, is relative to the requested maximum `\ell`.
 
         of : list, default=None
-            List of outputs, ['tt','ee','bb','pp','te','tp']. If ``None``, return all computed outputs.
+            List of outputs, ['tt', 'ee', 'bb', 'pp', 'te', 'tp']. If ``None``, return all computed outputs.
 
         Returns
         -------
@@ -1597,7 +1597,7 @@ cdef class Harmonic:
             ellmax = self.le.l_lensed_max + 1 + ellmax
         if ellmax > self.le.l_lensed_max:
             raise ClassRuntimeError('You asked for ellmax = {:d}, greater than calculated ellmax = {:d}'.format(ellmax, self.le.l_lensed_max))
-        toret = np.empty(ellmax+1,dtype=dtype)
+        toret = np.empty(ellmax + 1, dtype=dtype)
         toret[:2] = 0
         # Recover for each ell the information from CLASS
 
@@ -1653,8 +1653,8 @@ cdef class Fourier:
         self.pt = &self.engine.pt
         self.fo = &self.engine.fo
 
-    property has_nonlinear:
-        r"""Whether the nonlinear power spectrum has been computed."""
+    property has_non_linear:
+        r"""Whether the non-linear power spectrum has been computed."""
         def __get__(self):
           return self.fo.method != nl_none
 
@@ -1731,20 +1731,20 @@ cdef class Fourier:
                 return 'delta_m'
         return of
 
-    def _use_pk_nonlinear(self, nonlinear=False):
-        r"""Helper routine that returns linear or nonlinear power spectrum flag."""
+    def _use_pk_non_linear(self, non_linear=False):
+        r"""Helper routine that returns linear or non-linear power spectrum flag."""
         if (self.fo.has_pk_m == _FALSE_):
             raise ClassRuntimeError('No power spectrum computed. You must add mPk to the list of outputs.')
-        if nonlinear:
-            if self.has_nonlinear:
+        if non_linear:
+            if self.has_non_linear:
                 return pk_nonlinear
-            raise ClassRuntimeError('You ask CLASS to return an array of nonlinear P(k,z) values, '
+            raise ClassRuntimeError('You ask CLASS to return an array of non-linear P(k,z) values, '
                                     'but the input parameters sent to CLASS did not require any non-linear P(k,z) calculations; '
-                                    'add e.g. "halofit" or "HMcode" in "nonlinear"')
+                                    'add e.g. "halofit" or "HMcode" in "non_linear"')
         return pk_linear
 
     @gridarray
-    def pk_kz(self, np.ndarray k, np.ndarray z, nonlinear=False, of='delta_m'):
+    def pk_kz(self, np.ndarray k, np.ndarray z, non_linear=False, of='delta_m'):
         r"""
         Return power spectrum, in :math:`(\mathrm{Mpc}/h)^{3}`.
 
@@ -1756,8 +1756,8 @@ cdef class Fourier:
         z : array_like
             Redshifts.
 
-        nonlinear : bool, default=False
-            Whether to return the nonlinear power spectrum (if requested in parameters, with 'nonlinear':'halofit' or 'HMcode').
+        non_linear : bool, default=False
+            Whether to return the non-linear power spectrum (if requested in parameters, with 'non_linear':'halofit' or 'HMcode').
 
         of : string, default='delta_m'
             Perturbed quantities.
@@ -1768,7 +1768,7 @@ cdef class Fourier:
         pk : numpy.ndarray
             Power spectrum array of shape (len(k), len(z)).
         """
-        cdef pk_outputs is_nonlinear = self._use_pk_nonlinear(nonlinear)
+        cdef pk_outputs is_non_linear = self._use_pk_non_linear(non_linear)
         # internally class uses 1 / Mpc
 
         k_size, z_size = k.size, z.size
@@ -1776,21 +1776,21 @@ cdef class Fourier:
         cdef np.ndarray pk = np.empty(k_size * z_size, dtype=np.float64)
         cdef np.ndarray pk_cb = np.empty(k_size * z_size, dtype=np.float64)
 
-        fourier_pks_at_kvec_and_zvec(self.ba, self.fo, is_nonlinear, <double*> kh.data, k_size, <double*> z.data, z_size, <double*> pk.data, <double*> pk_cb.data)
+        fourier_pks_at_kvec_and_zvec(self.ba, self.fo, is_non_linear, <double*> kh.data, k_size, <double*> z.data, z_size, <double*> pk.data, <double*> pk_cb.data)
 
         toret = pk_cb if self._check_pk_of(of) == 'delta_cb' else pk
         toret[...] *= self.ba.h**3
         return toret
 
     @cython.boundscheck(False)
-    def table(self, nonlinear=False, of='delta_m'):
+    def table(self, non_linear=False, of='delta_m'):
         r"""
         Return power spectrum table, in :math:`(\mathrm{Mpc}/h)^{3}`.
 
         Parameters
         ----------
-        nonlinear : bool, default=False
-            Whether to return the nonlinear power spectrum (if requested in parameters, with 'nonlinear':'halofit' or 'HMcode').
+        non_linear : bool, default=False
+            Whether to return the non-linear power spectrum (if requested in parameters, with 'non_linear':'halofit' or 'HMcode').
             Computed only for ``of == 'delta_m'`` or 'delta_cb'.
 
         of : string, tuple, default='delta_m'
@@ -1812,9 +1812,9 @@ cdef class Fourier:
         k = np.array(<double[:self.fo.k_size]> self.fo.k, dtype=np.float64)
         cdef double[:] z = np.empty(self.fo.ln_tau_size, dtype=np.float64)
         cdef double[:,:] pk_at_k_z = np.empty((self.fo.k_size, self.fo.ln_tau_size), dtype=np.float64)
-        cdef pk_outputs is_nonlinear = self._use_pk_nonlinear(nonlinear)
+        cdef pk_outputs is_non_linear = self._use_pk_non_linear(non_linear)
         cdef int index_k, index_tau
-        cdef double z_max_nonlinear, z_max_requested
+        cdef double z_max_non_linear, z_max_requested
 
         cdef int index_ic1, index_ic2, index_ic1_ic1, index_ic1_ic2, index_ic2_ic2, index_tp1, index_tp2, ntheta, last_index #junk
         cdef double *primordial_pk = <double*> malloc(self.fo.ic_ic_size * sizeof(double))
@@ -1833,31 +1833,31 @@ cdef class Fourier:
             elif background_z_of_tau(self.ba, exp(self.fo.ln_tau[index_tau]), &(z[index_tau])) == _FAILURE_:
                 raise ClassRuntimeError(self.ba.error_message.decode())
 
-        if is_nonlinear == pk_nonlinear:
-            if background_z_of_tau(self.ba, self.fo.tau[self.fo.index_tau_min_nl], &z_max_nonlinear) == _FAILURE_:
+        if is_non_linear == pk_nonlinear:
+            if background_z_of_tau(self.ba, self.fo.tau[self.fo.index_tau_min_nl], &z_max_non_linear) == _FAILURE_:
                 raise ClassRuntimeError(self.ba.error_message.decode())
             z_max_requested = z[0]
             if ((self.fo.tau_size - self.fo.ln_tau_size) < self.fo.index_tau_min_nl):
-                raise ClassRuntimeError('table() is trying to return P(k,z) up to z_max={:.e} (to encompass your requested maximum value of z); '
-                                        'but the input parameters sent to CLASS were such that the non-linear P(k,z) could only be consistently computed up to z={:.e}; '
+                raise ClassRuntimeError('table() is trying to return P(k,z) up to z_max={:.3f} (to encompass your requested maximum value of z); '
+                                        'but the input parameters sent to CLASS were such that the non-linear P(k,z) could only be consistently computed up to z={:.3f}; '
                                         'increase the input parameter "P_k_max_h/Mpc" or "P_k_max_1/Mpc", or increase the precision parameters "halofit_min_k_max" and/or '
-                                        '"hmcode_min_k_max", or decrease your requested z_max'.format(z_max_requested, z_max_nonlinear))
+                                        '"hmcode_min_k_max", or decrease your requested z_max'.format(z_max_requested, z_max_non_linear))
 
-        if not isinstance(of,(tuple,list)):
-            of = (of,of)
+        if not isinstance(of, (tuple, list)):
+            of = (of, of)
 
         if of[0] == of[1] and of[0] in ['delta_m', 'delta_cb']:
             index_tp1 = self._index_pk_of(of[0])
             with nogil:
                 for index_tau in range(self.fo.ln_tau_size):
                     for index_k in range(self.fo.k_size):
-                        if is_nonlinear == pk_nonlinear:
+                        if is_non_linear == pk_nonlinear:
                             pk_at_k_z[index_k, index_tau] = exp(self.fo.ln_pk_nl[index_tp1][index_tau * self.fo.k_size + index_k])
                         else:
                             pk_at_k_z[index_k, index_tau] = exp(self.fo.ln_pk_l[index_tp1][index_tau * self.fo.k_size + index_k])
 
-        elif nonlinear:
-            raise ClassBadValueError('Nonlinear power spectrum is computed for auto delta_m and delta_cb only')
+        elif non_linear:
+            raise ClassBadValueError('Non-linear power spectrum is computed for auto delta_m and delta_cb only')
 
         else:
             primordial_pk = <double*> malloc(self.fo.ic_ic_size*sizeof(double))
