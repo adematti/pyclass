@@ -3,7 +3,6 @@ import sys
 import glob
 import shutil
 import sysconfig
-import setuptools  # necessary for install_requires
 
 from numpy.distutils.core import Extension
 from numpy.distutils.command.build_clib import build_clib

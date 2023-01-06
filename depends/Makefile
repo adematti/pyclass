@@ -25,7 +25,6 @@ $(DEST)/lib/libclass.a: $(SRC)/libclass.a
 	cp $(SRC)/libclass.a $(DEST)/lib
 	mkdir -p $(DEST)/data
 	cp $(SRC)/*.ini $(SRC)/*.pre $(DEST)/data/
-	rm -rf $(TARBALL)
 	rm -rf $(TARBALL) $(UNPACK) $(SRC)
 
 build: $(SRC)/libclass.a

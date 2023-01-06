@@ -140,7 +140,7 @@ def gridarray(func):
 
 def _compile_params(params):
     r"""Build up parameter dictionary: removes ``None``, enforce ``output`` (calculation being determined by :meth:`ClassEngine.compute`)."""
-    params = {**_EXTERNAL_FILES,**params}
+    params = {**_EXTERNAL_FILES, **params}
     if 'verbose' in params:
         params.pop('verbose')
         verbose = params['verbose']
@@ -151,7 +151,7 @@ def _compile_params(params):
                 if name not in params: params[name] = 1
     for key in list(params.keys()):
         if params[key] is None: params.pop(key)
-    #params.setdefault('output',['dTk', 'vTk', 'tCl', 'pCl', 'lCl', 'mPk', 'nCl'])
+    #params.setdefault('output', ['dTk', 'vTk', 'tCl', 'pCl', 'lCl', 'mPk', 'nCl'])
     params['output'] = ['dTk', 'vTk', 'tCl', 'pCl', 'lCl', 'mPk', 'nCl']
     return params
 
@@ -957,7 +957,7 @@ cdef class Background:
 
         See eq. 16 of `astro-ph/9905116 <https://arxiv.org/abs/astro-ph/9905116>`_ for :math:`D_{M}(z)`.
         """
-        return self.angular_diameter_distance(z)*(1. + z)
+        return self.angular_diameter_distance(z) * (1. + z)
 
     @flatarray
     def growth_factor(self, z):
