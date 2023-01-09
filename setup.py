@@ -4,14 +4,13 @@ import glob
 import shutil
 import sysconfig
 
-from numpy.distutils.core import Extension
-from numpy.distutils.command.build_clib import build_clib
-from numpy.distutils.command.build_ext import build_ext
-from numpy.distutils.command.sdist import sdist
-from numpy.distutils.command.develop import develop
+from setuptools import setup, Extension
+from setuptools.command.build_clib import build_clib
+from setuptools.command.build_ext import build_ext
+from setuptools.command.sdist import sdist
+from setuptools.command.develop import develop
 from distutils.command.clean import clean
-from Cython.Build import cythonize
-import numpy as np
+
 
 # base directory of package
 package_basedir = os.path.abspath(os.path.dirname(__file__))
@@ -77,6 +76,7 @@ class custom_build_ext(build_ext):
 
     def finalize_options(self):
         build_ext.finalize_options(self)
+        import numpy as np
         self.include_dirs.append(np.get_include())
         self.cython_directives = {'language_level': '3' if sys.version_info.major >= 3 else '2'}
 
@@ -115,6 +115,7 @@ class custom_develop(develop):
         self.run_command('build_ext')
         build_ext = self.get_finalized_command('build_ext')
         for name in ['external', 'data']:
+            shutil.rmtree(os.path.join(package_basedir, 'pyclass', name), ignore_errors=True)
             shutil.copytree(os.path.join(build_ext.build_temp, name), os.path.join(package_basedir, 'pyclass', name))
         super(custom_develop, self).run()
 
@@ -141,7 +142,7 @@ class custom_clean(clean):
 
 
 def libclass_config():
-    return ('class', {})
+    return ('class', {'sources': []})
 
 
 def find_compiler():
@@ -184,8 +185,6 @@ def classy_extension_config():
 
 if __name__ == '__main__':
 
-    from numpy.distutils.core import setup
-
     setup(name=package_basename,
           version=version,
           author='Arnaud de Mattia, based on classylss by Nick Hand, Yu Feng',
@@ -194,7 +193,7 @@ if __name__ == '__main__':
           license='GPL3',
           url='http://github.com/adematti/pyclass',
           install_requires=['numpy', 'cython'],
-          ext_modules=cythonize([Extension(**classy_extension_config())]),
+          ext_modules=[Extension(**classy_extension_config())],
           libraries=[libclass_config()],
           cmdclass={'sdist': custom_sdist,
                     'build_clib': custom_build_clib,

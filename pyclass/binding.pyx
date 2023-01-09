@@ -10,7 +10,7 @@ from libc.math cimport exp, sqrt
 
 from cclassy cimport *
 
-from utils import get_external_files
+from .utils import get_external_files
 _EXTERNAL_FILES = get_external_files()
 
 DEF _Mpc_over_m_ = 3.085677581282e22  #  /**< conversion factor from meters to megaparsecs */
