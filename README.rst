@@ -24,7 +24,7 @@ Installation
 Mac OS
 ------
 If you wish to use clang compiler (instead of gcc), you may encounter an error related to ``-fopenmp`` flag.
-In this case, you can try to export::
+In this case, you can try to export:
 
 .. code:: bash
 
