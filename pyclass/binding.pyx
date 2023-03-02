@@ -598,6 +598,11 @@ cdef class Background:
         def __get__(self):
             return np.array([self.ba.m_ncdm_in_eV[i] for i in range(self.N_ncdm)], dtype=np.float64)
 
+    property m_ncdm_tot:
+        r"""The sum of masses of the distinguishable ncdm (massive neutrino) species, in :math:`\mathrm{eV}`."""
+        def __get__(self):
+            return self.m_ncdm.sum()
+
     property age0:
         r"""The current age of the Universe, in :math:`\mathrm{Gy}`."""
         def __get__(self):
