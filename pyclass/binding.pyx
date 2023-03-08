@@ -521,6 +521,11 @@ cdef class Background:
         def __get__(self):
             return self.ba.wa_fld
 
+    property cs2_fld:
+        r"""The sound speed defined in the frame comoving with the fluid :math:`c_{s}^{2}`, unitless."""
+        def __get__(self):
+            return self.ba.cs2_fld
+
     property Omega0_k:
         r"""Current density parameter of curvaturve :math:`\Omega_{k,0}`, unitless."""
         def __get__(self):
@@ -1066,12 +1071,12 @@ cdef class Thermodynamics:
             return self.th.rs_rec * self.ba.h
 
     property z_star:
-        r"""Decoupling redshift (at which photon optical depth crosses one), unitless."""
+        r"""Redshift of the last scattering surface (at which photon optical depth crosses one), unitless."""
         def __get__(self):
             return self.th.z_star
 
     property rs_star:
-        r"""Comoving sound horizon at recombination, in :math:`\mathrm{Mpc}/h`."""
+        r"""Comoving sound horizon at the last scattering surface, in :math:`\mathrm{Mpc}/h`."""
         def __get__(self):
             return self.th.rs_star * self.ba.h
 
@@ -1081,7 +1086,7 @@ cdef class Thermodynamics:
             return self.th.rs_rec / self.th.da_rec / (1. + self.th.z_rec)
 
     property theta_star:
-        r"""Sound horizon angle at recombination, equal to :math:`r_s(z_\mathrm{\star}) / D_A(z_\mathrm{\star})`, in radians."""
+        r"""Sound horizon angle at the last scattering surface, equal to :math:`r_s(z_\mathrm{\star}) / D_A(z_\mathrm{\star})`, in radians."""
         def __get__(self):
             return self.th.rs_star / self.th.da_star / (1. + self.th.z_star)
 
