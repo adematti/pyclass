@@ -1,2 +1,2 @@
-version = '1.0.0'
-class_version = '3.1.1b'
+version = '1.1.0'
+class_version = '3.2.0b'

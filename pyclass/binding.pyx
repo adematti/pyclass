@@ -176,7 +176,7 @@ cdef int _build_file_content(params, file_content * fc) except -1:
     fc.read = <short*> malloc(sizeof(short)*len(params))
     assert(fc.read != NULL)
     # fill parameter file
-    for ii,kk in enumerate(params.keys()):
+    for ii, kk in enumerate(params.keys()):
         dumcp = kk.encode()
         strncpy(fc.name[ii], dumcp[:sizeof(FileArg)-1], sizeof(FileArg))
         dumcp = val2str(params[kk]).encode()
@@ -328,7 +328,6 @@ cdef class ClassEngine:
         """
         cdef file_content * fc = &self.fc
         cdef ErrorMsg errmsg
-
         tasks = _build_task_dependency(tasks)
 
         # --------------------------------------------------------------------
@@ -346,16 +345,14 @@ cdef class ClassEngine:
                 raise ClassParserError(errmsg.decode(), self.get_params_str())
 
             # This part is done to list all the unread parameters, for debugging
-            problem_flag = False
-            problematic_parameters = []
+            unread_parameters = []
             for ii in range(fc.size):
                 if fc.read[ii] == _FALSE_:
-                    problem_flag = True
-                    problematic_parameters.append(fc.name[ii].decode())
+                    unread_parameters.append(fc.name[ii].decode())
 
-            if problem_flag:
+            if unread_parameters:
                 import warnings
-                warnings.warn('Class did not read input parameter(s): {}'.format(', '.join(problematic_parameters)))
+                warnings.warn('Class did not read input parameter(s): {}'.format(', '.join(unread_parameters)))
             self.ready.ip = True
             self.l_scalar_max = self.pt.l_scalar_max
 
@@ -375,11 +372,11 @@ cdef class ClassEngine:
 
         compute_transfer = 'transfer' in tasks and not self.ready.tr
         compute_harmonic = 'harmonic' in tasks and not self.ready.hr
-        compute_transfer = compute_transfer or compute_harmonic # to avoid segfault if e.g. Transfer then Harmonic
+        compute_transfer |= compute_harmonic # to avoid segfault if e.g. Transfer then Harmonic
         compute_fourier = 'fourier' in tasks and not self.ready.fo
         compute_primordial = 'primordial' in tasks and not self.ready.pm
         compute_distortions = 'distortions' in tasks and not self.ready.sd
-        self.ready.pt = not(compute_transfer or compute_harmonic or compute_fourier)
+        #self.ready.pt &= not(compute_transfer or compute_harmonic or compute_fourier)
         compute_perturbations = 'perturbations' in tasks and not self.ready.pt
         self.pt.has_cl_cmb_temperature = short(compute_harmonic or self.ready.hr)
         self.pt.has_cl_cmb_polarization = short(compute_harmonic or self.ready.hr)
@@ -397,7 +394,6 @@ cdef class ClassEngine:
         # The following list of computation is straightforward. If the '_init'
         # methods fail, call `struct_cleanup` and raise a ClassBadValueError
         # with the error message from the faulty module of CLASS.
-
         if compute_background:
             if background_init(&self.pr, &self.ba) == _FAILURE_:
                 raise ClassBadValueError(self.ba.error_message.decode())
@@ -1060,6 +1056,11 @@ cdef class Thermodynamics:
         def __get__(self):
             return self.th.z_reio
 
+    property tau_rec:
+        r"""Optical depth at recombination, unitless."""
+        def __get__(self):
+            return self.th.tau_rec
+
     property z_rec:
         r"""Recombination redshift (at which the visibility reaches its maximum), unitless."""
         def __get__(self):
@@ -1446,7 +1447,7 @@ cdef class Transfer:
 
         cdef np.ndarray data = np.zeros((len(ic_keys), k_size), dtype=dtype)
 
-        if perturbations_output_data(self.ba, self.pt, outf, <double> z, len(dtype.fields), <double*> data.data) == _FAILURE_:
+        if perturbations_output_data_at_z(self.ba, self.pt, outf, <double> z, len(dtype.fields), <double*> data.data) == _FAILURE_:
             raise ClassRuntimeError(self.pt.error_message.decode())
 
         if len(ic_keys) > 1:
@@ -1547,15 +1548,15 @@ cdef class Harmonic:
                 ellmax -= self.pr.delta_l_max
         if ellmax > self.hr.l_max_tot:
             raise ClassRuntimeError('You asked for ellmax = {:d}, greater than calculated ellmax = {:d}'.format(ellmax, self.hr.l_max_tot))
-        toret = np.empty(ellmax + 1,dtype=dtype)
+        toret = np.empty(ellmax + 1, dtype=dtype)
         toret[:2] = 0
         # Recover for each ell the information from CLASS
-
         for ell from 2 <= ell < ellmax + 1:
             if harmonic_cl_at_l(self.hr, ell, rcl, cl_md, cl_md_ic) == _FAILURE_:
                 raise ClassRuntimeError(self.hr.error_message.decode())
             for name in names:
                 toret[name][ell] = rcl[indices[name]]
+
         toret['ell'] = np.arange(ellmax + 1)
         free(rcl)
         for index_md in range(self.hr.md_size):

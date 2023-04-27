@@ -12,9 +12,9 @@ def test_params():
 
 
 def test_task_dependency():
-    params = {'P_k_max_h/Mpc': 2., 'z_max_pk': 10.0, 'k_output_values': '0.01, 0.2', 'modes': 's,t'}
+    #params = {'P_k_max_h/Mpc': 2., 'z_max_pk': 10.0, 'k_output_values': '0.01, 0.2', 'modes': 's,t'}
+    params = {'P_k_max_h/Mpc': 2., 'z_max_pk': 10.0, 'k_output_values': '0.01, 0.2'}
     cosmo = ClassEngine(params)
-
     Background(cosmo).table()
     Thermodynamics(cosmo).table()
     Primordial(cosmo).table()
@@ -46,6 +46,11 @@ def test_task_dependency():
     Harmonic(cosmo).lensed_table()
     cosmo = ClassEngine(params)
     Fourier(cosmo).table()
+
+    #for i in range(10):
+        #cosmo = ClassEngine({'k_output_values': '0.01, 0.2'})
+    #    cosmo = ClassEngine(params)
+    #    Perturbations(cosmo).table()
 
 
 def test_background():
@@ -171,9 +176,22 @@ def test_classy():
     cosmo.empty()
 
 
+def test_classy():
+    import classy
+    print(classy.__file__)
+
+    from classy import Class
+
+    for i in range(50):
+        cosmo = Class()
+        cosmo.set({'P_k_max_h/Mpc': 2., 'z_max_pk': 10.0, 'k_output_values': '0.01, 0.2', 'output': 'dTk, vTk, tCl, pCl, lCl, mPk, nCl', 'modes': 's,t'})
+        cosmo.compute(level=['perturbations'])
+        cosmo.struct_cleanup()
+        cosmo.empty()
+
+
 if __name__ == '__main__':
 
-    test_task_dependency()
     test_background()
     test_params()
     test_task_dependency()

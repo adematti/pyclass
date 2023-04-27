@@ -182,6 +182,7 @@ cdef extern from "class.h":
         int index_md_tensors
 
         possible_gauges gauge
+        double k_min
         double k_max_for_pk
         double z_max_pk
         int l_scalar_max
@@ -412,7 +413,7 @@ cdef extern from "class.h":
     int thermodynamics_output_titles(void * pba, void *pth, char titles[_MAXTITLESTRINGLENGTH_]) nogil
     int thermodynamics_output_data(void *pba, void *pth, int number_of_titles, double *data) nogil
 
-    int perturbations_output_data(void *pba,void *ppt, file_format output_format, double z, int number_of_titles, double *data) nogil
+    int perturbations_output_data_at_z(void *pba,void *ppt, file_format output_format, double z, int number_of_titles, double *data) nogil
     int perturbations_output_firstline_and_ic_suffix(void *ppt, int index_ic, char first_line[_LINE_LENGTH_MAX_], FileName ic_suffix) nogil
     int perturbations_output_titles(void *pba, void *ppt,  file_format output_format, char titles[_MAXTITLESTRINGLENGTH_]) nogil
 
