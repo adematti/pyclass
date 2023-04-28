@@ -48,7 +48,7 @@ def test_task_dependency():
     Fourier(cosmo).table()
 
     #for i in range(10):
-        #cosmo = ClassEngine({'k_output_values': '0.01, 0.2'})
+    #    cosmo = ClassEngine({'k_output_values': '0.01, 0.2'})
     #    cosmo = ClassEngine(params)
     #    Perturbations(cosmo).table()
 
@@ -110,7 +110,9 @@ def test_perturbations():
     #cosmo = ClassEngine({'output': 'dTk vTk mPk', 'P_k_max_h/Mpc': 20., 'z_max_pk': 100.0, 'k_output_values':'0.01, 0.2'})
     cosmo = ClassEngine({'P_k_max_h/Mpc': 20., 'z_max_pk': 100.0, 'k_output_values': '0.01, 0.2', 'modes': 's,t'})
     pt = Perturbations(cosmo)
-    assert len(pt.table()) == 2
+    t = pt.table()
+    assert len(t) == 2
+    assert t[0]['tau [Mpc]'].ndim == 1
 
 
 def test_transfer():
@@ -177,15 +179,22 @@ def test_classy():
 
 
 def test_classy():
-    import classy
-    print(classy.__file__)
-
+    #import classy
+    #print(classy.__file__)
+    """
+    for i in range(50):
+        cosmo = ClassEngine({'P_k_max_h/Mpc': 2., 'z_max_pk': 10.0, 'k_output_values': '0.01, 0.2', 'output': 'dTk, vTk, tCl, pCl, lCl, mPk, nCl', 'modes': 's,t'})
+        #Perturbations(cosmo)
+        cosmo.compute('perturbations')
+    """
     from classy import Class
 
     for i in range(50):
         cosmo = Class()
-        cosmo.set({'P_k_max_h/Mpc': 2., 'z_max_pk': 10.0, 'k_output_values': '0.01, 0.2', 'output': 'dTk, vTk, tCl, pCl, lCl, mPk, nCl', 'modes': 's,t'})
-        cosmo.compute(level=['perturbations'])
+        #cosmo.set({'P_k_max_h/Mpc': 2., 'z_max_pk': 10.0, 'k_output_values': '0.01, 0.2', 'output': 'dTk,vTk,tCl,pCl,lCl,mPk,nCl', 'modes': 's,t'})
+        #cosmo.set({'k_output_values': '0.01, 0.2', 'output': 'dTk,vTk,tCl,pCl,lCl,mPk,nCl', 'modes': 's,t'})
+        cosmo.set({'k_output_values': '0.01', 'output': 'dTk,vTk,tCl,pCl,mPk', 'modes': 's,t'})
+        cosmo.compute(level=['perturb'])
         cosmo.struct_cleanup()
         cosmo.empty()
 

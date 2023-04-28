@@ -1,4 +1,4 @@
-CLASS_VERSION?=3.1.1
+CLASS_VERSION?=3.2.0
 DEST?=_inst
 
 TARBALL=class-v$(CLASS_VERSION).tar.gz
@@ -7,6 +7,7 @@ SRC=$(UNPACK)/class_public-$(CLASS_VERSION)
 
 $(TARBALL):
 	curl -fsSL https://github.com/adematti/class_public/archive/refs/tags/v$(CLASS_VERSION).tar.gz > $(TARBALL)
+	#curl -fsSL https://github.com/lesgourg/class_public/archive/refs/tags/v$(CLASS_VERSION).tar.gz > $(TARBALL)
 	#wget -O $(TARBALL) https://github.com/adematti/class_public/archive/refs/tags/v$(CLASS_VERSION).tar.gz
 
 $(SRC): $(TARBALL)

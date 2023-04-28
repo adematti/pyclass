@@ -394,6 +394,8 @@ cdef class ClassEngine:
         # The following list of computation is straightforward. If the '_init'
         # methods fail, call `struct_cleanup` and raise a ClassBadValueError
         # with the error message from the faulty module of CLASS.
+        # print(params)
+        # print(compute_background, compute_thermodynamics, compute_perturbations, compute_primordial, compute_fourier, compute_transfer, compute_harmonic, compute_lensing, compute_distortions)
         if compute_background:
             if background_init(&self.pr, &self.ba) == _FAILURE_:
                 raise ClassBadValueError(self.ba.error_message.decode())
@@ -1328,6 +1330,7 @@ cdef class Perturbations:
         """
         cdef char titles[_MAXTITLESTRINGLENGTH_]
         cdef double * data[_MAX_NUMBER_OF_K_FILES_]
+        cdef double[:, :] datak
         modes = ['scalar', 'vector', 'tensor']
         if mode not in modes:
             raise ClassBadValueError('mode should be one of {}'.format(mode))
@@ -1351,7 +1354,11 @@ cdef class Perturbations:
         if ntitles:
             for ik in range(self.pt.k_output_values_num):
                 timesteps = sizes[ik] // ntitles
-                toret.append(np.array(<double[:timesteps, :ntitles]> data[ik], dtype=dtype))
+                datak = <double[:timesteps, :ntitles]> data[ik]
+                array = np.empty(timesteps, dtype=dtype)
+                for ititle, title in enumerate(dtype.names):
+                    array[title] = datak[:, ititle]
+                toret.append(array)
         return toret
 
     @staticmethod
@@ -1903,7 +1910,7 @@ cdef class Fourier:
                             else:
                                 source_tp2_ic1 = source_tp1_ic1
                             sumpk += factor_k * source_tp1_ic1 * source_tp2_ic1 * exp(primordial_pk[index_ic1_ic1])
-                            for index_ic2 in range(index_ic1+1,self.fo.ic_size):
+                            for index_ic2 in range(index_ic1+1, self.fo.ic_size):
                                 index_ic1_ic2 = index_symmetric_matrix(index_ic1, index_ic2,self.fo.ic_size)
                                 index_ic2_ic2 = index_symmetric_matrix(index_ic2, index_ic2,self.fo.ic_size)
                                 if self.fo.is_non_zero[index_ic1_ic2] == _TRUE_:
