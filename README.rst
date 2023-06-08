@@ -37,6 +37,11 @@ Examples
 
 See the tests of the code in ``pyclass/tests/`` for examples of using each of the main CLASS modules.
 
+Extensions
+----------
+To implement a CLASS extension ``extension``, just copy-paste ``base`` into e.g. ``extension``,
+and make the changes to the Cython ``extension/binding.pyx`` and ``extension/cclassy.pxd`` files for the specific extension.
+
 Acknowledgments
 ----------------
 

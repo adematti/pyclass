@@ -1,18 +1,18 @@
-CLASS_VERSION?=3.2.0
 DEST?=_inst
+URL?=https://github.com/adematti/class_public/archive/refs/tags/v3.2.0b.tar.gz
+#URL?=
 
-TARBALL=class-v$(CLASS_VERSION).tar.gz
-UNPACK=tmp-class-v$(CLASS_VERSION)
-SRC=$(UNPACK)/class_public-$(CLASS_VERSION)
+TARBALL=class.tar.gz
+UNPACK=tmp-class
+SRC=$(UNPACK)
 
 $(TARBALL):
-	curl -fsSL https://github.com/adematti/class_public/archive/refs/tags/v$(CLASS_VERSION).tar.gz > $(TARBALL)
-	#curl -fsSL https://github.com/lesgourg/class_public/archive/refs/tags/v$(CLASS_VERSION).tar.gz > $(TARBALL)
-	#wget -O $(TARBALL) https://github.com/adematti/class_public/archive/refs/tags/v$(CLASS_VERSION).tar.gz
+	curl -fsSL $(URL) > $(TARBALL)
 
 $(SRC): $(TARBALL)
 	mkdir -p $(UNPACK)
 	gzip -dc $(TARBALL) | tar xf - -C $(UNPACK)
+	mv $(UNPACK)/class*/* $(UNPACK)/
 	touch $@
 
 $(SRC)/libclass.a: $(SRC)

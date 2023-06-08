@@ -4,7 +4,7 @@ import glob
 import shutil
 import sysconfig
 
-from setuptools import setup, Extension
+from setuptools import setup, Extension, find_packages
 from setuptools.command.build_clib import build_clib
 from setuptools.command.build_ext import build_ext
 from setuptools.command.sdist import sdist
@@ -20,55 +20,29 @@ package_basename = 'pyclass'
 sys.path.insert(0, os.path.join(package_basedir, package_basename))
 import _version
 version = _version.version
-class_version = _version.class_version
 
 
-def build_CLASS(prefix):
-    """
-    Function to dowwnload CLASS from github and build the library
-    """
+def find_branches():
+    return find_packages(where=package_basename)
+
+
+def find_url(branch):
+    import importlib
+    spec = importlib.util.spec_from_file_location(branch, os.path.join(package_basedir, package_basename, branch, '_version.py'))
+    foo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(foo)
+    return foo.url
+
+
+def build_class(build_dir, branch='base'):
+    """Function to dowwnload CLASS from github and build the library."""
     # latest class version and download link
-    args = (package_basedir, package_basedir, class_version, os.path.abspath(prefix))
+    url = find_url(branch)
+    args = (package_basedir, package_basedir, url, os.path.abspath(build_dir))
     command = 'sh {}/depends/install_class.sh {} {} {}'.format(*args)
 
-    ret = os.system(command)
-    if ret != 0:
-        raise ValueError('could not build CLASS v{}'.format(class_version))
-
-
-class custom_build_clib(build_clib):
-    """
-    Custom command to build CLASS first, and then GCL library
-    """
-    def finalize_options(self):
-        build_clib.finalize_options(self)
-
-        # create the CLASS build directory and save the include path
-        self.class_build_dir = self.build_temp
-        self.include_dirs.insert(0, os.path.join(self.class_build_dir, 'include'))
-        for external in ['heating', 'HyRec2020', 'RecfastCLASS']:
-            self.include_dirs.insert(0, os.path.join(self.class_build_dir, 'external', external))
-
-    def build_libraries(self, libraries):
-        # build CLASS first
-        build_CLASS(self.class_build_dir)
-
-        # update the link objects with CLASS library
-        link_objects = ['libclass.a']
-        # link_objects = list(glob(os.path.join(self.class_build_dir, '*', 'libclass.a')))
-
-        self.compiler.set_link_objects(link_objects)
-        self.compiler.library_dirs.insert(0, os.path.join(self.class_build_dir, 'lib'))
-
-        # then no longer need to build class.
-
-        libraries = [lib for lib in libraries if lib[0] != 'class']
-
-        for (library, build_info) in libraries:
-            # update include dirs
-            self.include_dirs += build_info.get('include_dirs', [])
-
-        super(custom_build_clib, self).build_libraries(libraries)
+    if os.system(command) != 0:
+        raise ValueError('could not build CLASS {}'.format(build_dir))
 
 
 class custom_build_ext(build_ext):
@@ -81,32 +55,26 @@ class custom_build_ext(build_ext):
         self.cython_directives = {'language_level': '3' if sys.version_info.major >= 3 else '2'}
 
     def run(self):
-        if self.distribution.has_c_libraries():
-            self.run_command('build_clib')
-            build_clib = self.get_finalized_command('build_clib')
-            self.include_dirs += build_clib.include_dirs
-            self.library_dirs += build_clib.compiler.library_dirs
+        for extension in self.extensions:
+            branch = extension.name[len(package_basename) + 1:-len('binding') - 1]
+            build_dir = os.path.join(self.build_temp, branch)
+            build_class(build_dir, branch=branch)
+            library_dir = os.path.join(build_dir, 'lib')
+            # os.rename(os.path.join(library_dir, 'libclass.a'), os.path.join(library_dir, 'libclass-{}.a'.format(branch)))
+            extension.include_dirs.insert(0, os.path.join(build_dir, 'include'))
+            for external in ['heating', 'HyRec2020', 'RecfastCLASS']:
+                extension.include_dirs.insert(0, os.path.join(build_dir, 'external', external))
+            extension.library_dirs.insert(0, library_dir)
+            extension.libraries.insert(0, 'class')
+            # extension.include_dirs = self.include_dirs + extension.include_dirs
 
-        # copy data files from temp to pyclass package directory
-        for name in ['external', 'data']:
-            shutil.rmtree(os.path.join(self.build_lib, 'pyclass', name), ignore_errors=True)
-            shutil.copytree(os.path.join(self.build_temp, name), os.path.join(self.build_lib, 'pyclass', name))
+            # copy data files from temp to pyclass package directory
+            for name in ['external', 'data']:
+                shutil.rmtree(os.path.join(self.build_lib, package_basename, branch, name), ignore_errors=True)
+                shutil.copytree(os.path.join(self.build_temp, branch, name), os.path.join(self.build_lib, package_basename, branch, name))
 
+        # self.include_dirs.clear()
         super(custom_build_ext, self).run()
-
-
-class custom_sdist(sdist):
-
-    def run(self):
-        from six.moves.urllib import request
-
-        # download CLASS
-        tarball_link = 'https://github.com/adematti/class_public/archive/v{}.tar.gz'.format(class_version)
-        tarball_local = os.path.join('depends', 'class-v{}.tar.gz'.format(class_version))
-        request.urlretrieve(tarball_link, tarball_local)
-
-        # run the default
-        super(custom_sdist, self).run()
 
 
 class custom_develop(develop):
@@ -114,9 +82,10 @@ class custom_develop(develop):
     def run(self):
         self.run_command('build_ext')
         build_ext = self.get_finalized_command('build_ext')
-        for name in ['external', 'data']:
-            shutil.rmtree(os.path.join(package_basedir, 'pyclass', name), ignore_errors=True)
-            shutil.copytree(os.path.join(build_ext.build_temp, name), os.path.join(package_basedir, 'pyclass', name))
+        for branch in find_branches():
+            for name in ['external', 'data']:
+                shutil.rmtree(os.path.join(package_basedir, package_basename, branch, name), ignore_errors=True)
+                shutil.copytree(os.path.join(build_ext.build_temp, branch, name), os.path.join(package_basedir, package_basename, branch, name))
         super(custom_develop, self).run()
 
 
@@ -132,17 +101,14 @@ class custom_clean(clean):
             if os.path.exists(dirpath) and os.path.isdir(dirpath):
                 shutil.rmtree(dirpath)
         # remove external and data directories set by develop
-        for name in ['external', 'data']:
-            shutil.rmtree(os.path.join(package_basedir, 'pyclass', name), ignore_errors=True)
-        for fn in glob.glob(os.path.join(package_basedir, 'pyclass', 'binding.c*')):
-            try: os.remove(fn)
-            except OSError: pass
+        for branch in find_branches():
+            for name in ['external', 'data']:
+                shutil.rmtree(os.path.join(package_basedir, package_basename, branch, name), ignore_errors=True)
+            for fn in glob.glob(os.path.join(package_basedir, package_basename, branch, 'binding.c*')):
+                try: os.remove(fn)
+                except OSError: pass
         # remove build directory
         shutil.rmtree('build', ignore_errors=True)
-
-
-def libclass_config():
-    return ('class', {'sources': []})
 
 
 def find_compiler():
@@ -160,34 +126,36 @@ def find_compiler():
 def compiler_is_clang(compiler):
     if compiler == 'clang':
         return True
-    from subprocess import Popen, PIPE
-    proc = Popen([compiler, '--version'], universal_newlines=True, stdout=PIPE, stderr=PIPE, shell=True)
+    import subprocess
+    proc = subprocess.Popen([compiler, '--version'], universal_newlines=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
     out, err = proc.communicate()
     if 'clang' in out:
         return True
     return False
 
 
-def classy_extension_config():
+def classy_extension_config(branch):
 
     compiler = find_compiler()
     # the configuration for GCL python extension
     config = {}
-    config['name'] = 'pyclass.binding'
-    config['extra_link_args'] = ['-g', '-fPIC']
+    config['name'] = '{}.{}.binding'.format(package_basename, branch)
+    config['extra_link_args'] = ['-fPIC']
     config['extra_compile_args'] = []
     # important or get a symbol not found error, because class is
     # compiled with c++?
     config['language'] = 'c'
-    config['libraries'] = ['class', 'm']
+    config['libraries'] = ['m']
 
     # determine if swig needs to be called
-    config['sources'] = [os.path.join('pyclass', 'binding.pyx')]
+    config['sources'] = [os.path.join(package_basename, branch, 'binding.pyx')]
 
     os.environ.setdefault('CC', compiler)
     if compiler_is_clang(compiler):
         # see https://github.com/lesgourg/class_public/issues/405
         os.environ.setdefault('OMPFLAG', '-Xclang -fopenmp')
+        os.environ.setdefault('CCFLAG', '')  # no -fPIC
+        os.environ.setdefault('LDFLAG', '-fPIC -lomp')
         config['extra_link_args'] += ['-lomp']
     else:
         config['extra_link_args'] += ['-lgomp']
@@ -201,6 +169,7 @@ def classy_extension_config():
 
 if __name__ == '__main__':
 
+
     setup(name=package_basename,
           version=version,
           author='Arnaud de Mattia, based on classylss by Nick Hand, Yu Feng',
@@ -209,12 +178,8 @@ if __name__ == '__main__':
           license='GPL3',
           url='http://github.com/adematti/pyclass',
           install_requires=['numpy', 'cython'],
-          ext_modules=[Extension(**classy_extension_config())],
-          libraries=[libclass_config()],
-          cmdclass={'sdist': custom_sdist,
-                    'build_clib': custom_build_clib,
-                    'build_ext': custom_build_ext,
+          ext_modules=[Extension(**classy_extension_config(branch)) for branch in find_branches()],
+          cmdclass={'build_ext': custom_build_ext,
                     'develop': custom_develop,
-                    'clean': custom_clean
-                    },
-          packages=[package_basename])
+                    'clean': custom_clean},
+          packages=find_packages())
