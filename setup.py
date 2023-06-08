@@ -24,9 +24,7 @@ class_version = _version.class_version
 
 
 def build_CLASS(prefix):
-    """
-    Function to dowwnload CLASS from github and build the library
-    """
+    """Function to dowwnload CLASS from github and build the library."""
     # latest class version and download link
     args = (package_basedir, package_basedir, class_version, os.path.abspath(prefix))
     command = 'sh {}/depends/install_class.sh {} {} {}'.format(*args)
@@ -37,9 +35,7 @@ def build_CLASS(prefix):
 
 
 class custom_build_clib(build_clib):
-    """
-    Custom command to build CLASS first, and then GCL library
-    """
+    """Custom command to build CLASS first, and then GCL library."""
     def finalize_options(self):
         build_clib.finalize_options(self)
 
@@ -89,8 +85,8 @@ class custom_build_ext(build_ext):
 
         # copy data files from temp to pyclass package directory
         for name in ['external', 'data']:
-            shutil.rmtree(os.path.join(self.build_lib, 'pyclass', name), ignore_errors=True)
-            shutil.copytree(os.path.join(self.build_temp, name), os.path.join(self.build_lib, 'pyclass', name))
+            shutil.rmtree(os.path.join(self.build_lib, package_basename, name), ignore_errors=True)
+            shutil.copytree(os.path.join(self.build_temp, name), os.path.join(self.build_lib, package_basename, name))
 
         super(custom_build_ext, self).run()
 
@@ -115,8 +111,8 @@ class custom_develop(develop):
         self.run_command('build_ext')
         build_ext = self.get_finalized_command('build_ext')
         for name in ['external', 'data']:
-            shutil.rmtree(os.path.join(package_basedir, 'pyclass', name), ignore_errors=True)
-            shutil.copytree(os.path.join(build_ext.build_temp, name), os.path.join(package_basedir, 'pyclass', name))
+            shutil.rmtree(os.path.join(package_basedir, package_basename, name), ignore_errors=True)
+            shutil.copytree(os.path.join(build_ext.build_temp, name), os.path.join(package_basedir, package_basename, name))
         super(custom_develop, self).run()
 
 
@@ -133,8 +129,8 @@ class custom_clean(clean):
                 shutil.rmtree(dirpath)
         # remove external and data directories set by develop
         for name in ['external', 'data']:
-            shutil.rmtree(os.path.join(package_basedir, 'pyclass', name), ignore_errors=True)
-        for fn in glob.glob(os.path.join(package_basedir, 'pyclass', 'binding.c*')):
+            shutil.rmtree(os.path.join(package_basedir, package_basename, name), ignore_errors=True)
+        for fn in glob.glob(os.path.join(package_basedir, package_basename, 'binding.c*')):
             try: os.remove(fn)
             except OSError: pass
         # remove build directory
