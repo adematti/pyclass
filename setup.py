@@ -174,7 +174,7 @@ def classy_extension_config():
     # the configuration for GCL python extension
     config = {}
     config['name'] = 'pyclass.binding'
-    config['extra_link_args'] = ['-g', '-fPIC']
+    config['extra_link_args'] = ['-fPIC']
     config['extra_compile_args'] = []
     # important or get a symbol not found error, because class is
     # compiled with c++?
@@ -188,6 +188,7 @@ def classy_extension_config():
     if compiler_is_clang(compiler):
         # see https://github.com/lesgourg/class_public/issues/405
         os.environ.setdefault('OMPFLAG', '-Xclang -fopenmp')
+        os.environ.setdefault('LDFLAG', '-lomp')
         config['extra_link_args'] += ['-lomp']
     else:
         config['extra_link_args'] += ['-lgomp']
