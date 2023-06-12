@@ -12,7 +12,6 @@ Dependencies
 - cython
 
 The CLASS code will be downloaded and compiled at installation.
-The CLASS version can be accessed through ``pyclass.class_version``.
 
 Installation
 ------------
