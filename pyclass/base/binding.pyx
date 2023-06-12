@@ -8,7 +8,7 @@ from libc.stdlib cimport malloc, free
 from libc.string cimport memset, strncpy, strdup
 from libc.math cimport exp, sqrt
 
-from cclassy cimport *
+from .cclassy cimport *
 
 from .utils import get_external_files
 _EXTERNAL_FILES = get_external_files()

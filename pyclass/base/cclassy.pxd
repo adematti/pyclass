@@ -13,6 +13,7 @@ DEF _LINE_LENGTH_MAX_ = 1024
 DEF _ARGUMENT_LENGTH_MAX_ = 1024
 DEF _ERRORMSGSIZE_ = 2048
 
+
 cdef extern from "class.h":
 
     cdef char[10] _VERSION_
