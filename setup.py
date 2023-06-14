@@ -98,8 +98,10 @@ class custom_clean(clean):
 
         # remove the CLASS tmp directories
         for dirpath in glob.glob(os.path.join('depends', 'tmp*')):
-            if os.path.exists(dirpath) and os.path.isdir(dirpath):
+            if os.path.isdir(dirpath):
                 shutil.rmtree(dirpath)
+            else:
+                os.remove(fn)
         # remove external and data directories set by develop
         for branch in find_branches():
             for name in ['external', 'data']:

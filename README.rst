@@ -40,6 +40,11 @@ Extensions
 ----------
 To implement a CLASS extension ``extension``, just copy-paste ``base`` into e.g. ``extension``,
 and make the changes to the Cython ``extension/binding.pyx`` and ``extension/cclassy.pxd`` files for the specific extension.
+That's it! Upon installation (``pip install --user .``), the extension is automatically compiled (together with ``base``), and can be imported as:
+
+.. code:: python
+
+   from pyclass.extension import *
 
 Acknowledgments
 ----------------

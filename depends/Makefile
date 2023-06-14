@@ -2,7 +2,7 @@ DEST?=_inst
 URL?=https://github.com/adematti/class_public/archive/refs/tags/v3.2.0b.tar.gz
 #URL?=
 
-TARBALL=class.tar.gz
+TARBALL=tmp-class.tar.gz
 UNPACK=tmp-class
 SRC=$(UNPACK)
 
