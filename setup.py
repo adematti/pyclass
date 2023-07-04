@@ -101,7 +101,7 @@ class custom_clean(clean):
             if os.path.isdir(dirpath):
                 shutil.rmtree(dirpath)
             else:
-                os.remove(fn)
+                os.remove(dirpath)
         # remove external and data directories set by develop
         for branch in find_branches():
             for name in ['external', 'data']:
