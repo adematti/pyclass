@@ -14,6 +14,10 @@ def test_params():
 def test_task_dependency():
     #params = {'P_k_max_h/Mpc': 2., 'z_max_pk': 10.0, 'k_output_values': '0.01, 0.2', 'modes': 's,t'}
     params = {'P_k_max_h/Mpc': 2., 'z_max_pk': 10.0, 'k_output_values': '0.01, 0.2'}
+    cosmo = ClassEngine({'z_max_pk': 10.0})
+    Fourier(cosmo)
+    Harmonic(cosmo)
+
     cosmo = ClassEngine(params)
     Background(cosmo).table()
     Thermodynamics(cosmo).table()
@@ -59,18 +63,20 @@ def test_background():
         if N: params['m_ncdm'] = [0.06] * N
         cosmo = ClassEngine(params)
         ba = Background(cosmo)
-        for name in ['rho_cdm', 'rho_dcdm', 'Omega_m', 'Omega_pncdm_tot', 'time', 'hubble_function', 'comoving_radial_distance', 'comoving_angular_distance', 'growth_factor', 'growth_rate']:
+
+        for name in ['rho_cdm', 'rho_dcdm', 'rho_ncdm_tot', 'p_ncdm_tot', 'Omega_m', 'Omega_pncdm_tot', 'time', 'hubble_function', 'comoving_radial_distance', 'comoving_angular_distance', 'growth_factor', 'growth_rate']:
             func = getattr(ba, name)
             assert func(0.1).shape == ()
             assert func([]).shape == (0,)
-            assert func(np.array([0.1])).shape == (1,)
+            assert func(z=np.array([0.1])).shape == (1,)
             assert func(np.array([0.1], dtype='f4')).dtype.itemsize == func(np.array([0.1], dtype='f8')).dtype.itemsize // 2 == 4
             assert np.issubdtype(func(0).dtype, np.floating) and np.issubdtype(func(np.array(0, dtype='i8')).dtype, np.floating)
-            assert func([0.1]).shape == (1,)
+            assert func(z=[0.1]).shape == (1,)
             assert func([0.2, 0.3]).shape == (2,)
             assert func([[0.2, 0.3, 0.4]]).shape == (1, 3)
             array = np.array([[0.2, 0.3, 0.4]] * 2)
             assert func(array).shape == array.shape == (2, 3)
+
         for name in ['T_ncdm', 'rho_ncdm', 'p_ncdm', 'Omega_pncdm']:
             func = getattr(ba, name)
             assert func(0.1).shape == (N,)
@@ -88,14 +94,15 @@ def test_thermodynamics():
     cosmo = ClassEngine({'P_k_max_h/Mpc': 20., 'z_max_pk': 100.0})
     # cosmo.compute('thermodynamics')
     th = Thermodynamics(cosmo)
-    z_d = th.z_drag
-    rs_d = th.rs_drag
-    tau_reio = th.tau_reio
-    z_reio = th.z_reio
-    z_rec = th.z_rec
-    rs_res = th.rs_rec
-    theta_star = th.theta_star
-    t = th.table()
+    th.z_drag
+    th.rs_drag
+    th.tau_reio
+    th.z_reio
+    th.z_rec
+    th.rs_rec
+    th.theta_star
+    th.YHe
+    th.table()
 
 
 def test_primordial():
@@ -145,8 +152,8 @@ def test_fourier():
         assert func([], []).shape == func(np.array([]), np.array([])).shape == (0, 0)
         assert func([0.1], 0.1).shape == (1,)
         assert func([0.1], [0.1]).shape == (1, 1)
-        assert func(10., [0., 1.0]).shape == (2,)
-        assert func(np.array(10., dtype='f4'), np.array([0., 1.0], dtype='f4')).dtype.itemsize == 4
+        assert func(10., z=[0., 1.0]).shape == (2,)
+        assert func(np.array(10., dtype='f4'), z=np.array([0., 1.0], dtype='f4')).dtype.itemsize == 4
         assert func([1., 10.], [0., 1.0]).shape == (2, 2)
         assert func([[1., 10.]] * 3, [0., 1.0, 2.0]).shape == (3, 2, 3)
     for name in ['sigma8_z']:
@@ -189,6 +196,32 @@ def test_classy():
     """
     from classy import Class
 
+    cosmo = Class()
+    cosmo.set({'z_pk': '1, 2, 3', 'output': 'dTk, vTk, tCl, pCl, lCl, mPk, nCl'})
+    cosmo.compute(level=['fourier'])
+    cosmo.compute(level=['harmonic'])
+
+    cosmo = ClassEngine({'z_pk': '1, 2, 3'})
+    Fourier(cosmo)
+    Harmonic(cosmo)
+
+    cosmo = Class()
+    cosmo.set({'z_pk': '1, 2, 3', 'output': 'dTk, mPk', 'gauge': 'newton'})
+    cosmo.compute()
+    pk_ref, k_ref, z_ref = cosmo.get_Weyl_pk_and_k_and_z(nonlinear=False)
+    pk_ref_2, k_ref, z_ref = cosmo.get_pk_and_k_and_z(nonlinear=False)
+    print(pk_ref[:, -1] / pk_ref_2[:, -1])
+    cosmo = ClassEngine({'z_pk': '1, 2, 3', 'gauge': 'newton'})
+    ba = Background(cosmo)
+    rho_m = 3. / 2. * ba.rho_m(0.) / ba._RH0_
+    print(rho_m**2)
+
+    k, z, pk = Fourier(cosmo).table(of='phi_plus_psi')
+    pk /= ba.h**3
+    pk *= k_ref[:, None]**4
+    pk /= 4
+    print(pk[:, -3:] / pk_ref[:, -3:])
+
     for i in range(50):
         cosmo = Class()
         #cosmo.set({'P_k_max_h/Mpc': 2., 'z_max_pk': 10.0, 'k_output_values': '0.01, 0.2', 'output': 'dTk,vTk,tCl,pCl,lCl,mPk,nCl', 'modes': 's,t'})
@@ -199,9 +232,15 @@ def test_classy():
         cosmo.empty()
 
 
+def test_error():
+    params = {'P_k_max_h/Mpc': 2., 'z_max_pk': 10.0, 'k_output_values': '0.01, 0.2', 'Omega_m': 0.1, 'Omega_b': 0.12}
+    cosmo = ClassEngine(params)
+    Background(cosmo).table()
+
+
 if __name__ == '__main__':
 
-    test_background()
+    #test_classy()
     test_params()
     test_task_dependency()
     test_background()

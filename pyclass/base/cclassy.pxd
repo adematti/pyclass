@@ -172,12 +172,16 @@ cdef extern from "class.h":
         int index_tp_delta_cb
         int index_tp_theta_m
         int index_tp_theta_cb
+        int index_tp_phi
+        int index_tp_psi
+        int index_tp_phi_plus_psi
         short has_source_theta_m
         short has_source_theta_cb
         short has_source_delta_m
         short has_source_delta_cb
         short has_cl_number_count
         short has_nc_rsd
+        short has_nc_gr
         int index_md_scalars
         int index_md_vectors
         int index_md_tensors

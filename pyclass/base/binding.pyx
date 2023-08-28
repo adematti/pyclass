@@ -1,6 +1,9 @@
 # cython: embedsignature=True
 # cython: binding=True
+import os
 import functools
+import inspect
+
 cimport cython
 import numpy as np
 cimport numpy as np
@@ -27,31 +30,20 @@ DEF _k_B_ = 1.3806504e-23
 DEF _h_P_ = 6.62606896e-34
 
 # NOTE: using here up to scipy accuracy; replace by e.g. CLASS accuracy?
-msun = 1.98847 * 1e30 # kg
+DEF msun = 1.98847 * 1e30  # kg
 # h^2 * kg/m^3
-rho_crit_kgph_per_mph3 = 3.0 * (100. * 1e3 / _Mpc_over_m_)**2 / (8 * np.pi * _G_)
-# h^2 * kg/m^3 / msun / Mpc^3 = Msun/h / (Mpc/h)^3
-rho_crit_Msunph_per_Mpcph3 = rho_crit_kgph_per_mph3 / (10**10 * msun) * _Mpc_over_m_**3
+cdef float rho_crit_kgph_per_mph3 = 3.0 * (100. * 1e3 / _Mpc_over_m_)**2 / (8 * np.pi * _G_)
+# h^2 * kg/m^3 / 10^10 msun / Mpc^3 = 10^10 Msun/h / (Mpc/h)^3
+cdef float rho_crit_Msunph_per_Mpcph3 = rho_crit_kgph_per_mph3 / (10**10 * msun) * _Mpc_over_m_**3
 
 DEF _MAX_NUMBER_OF_K_FILES_ = 30
 DEF _MAXTITLESTRINGLENGTH_ = 8000
 DEF _LINE_LENGTH_MAX_ = 1024
 
-cdef float NAN
-NAN = float('NaN')
+DEF NAN = float('NaN')
 
 
-class ClassRuntimeError(RuntimeError):
-    r"""Exception raised for an issue in CLASS."""
-
-    def __init__(self, message=''):
-        self.message = message
-
-    def __str__(self):
-        return 'CLASS runtime error: {}'.format(self.message)
-
-
-class ClassParserError(ValueError):
+class ClassInputError(ValueError):
     r"""Exception raised for an issue with the input parameters."""
 
     def __init__(self, message, file_content):
@@ -59,11 +51,21 @@ class ClassParserError(ValueError):
         self.file_content = file_content
 
     def __str__(self):
-        return 'CLASS parser error :{}\n{}'.format(self.message,self.file_content)
+        return 'CLASS input error :{}\n{}'.format(self.message, self.file_content)
 
 
-class ClassBadValueError(ValueError):
+class ClassComputationError(ValueError):
     r"""Raised when CLASS could not compute the cosmology with the provided parameters."""
+
+
+class ClassRuntimeError(ValueError):
+    r"""Exception raised when accessing CLASS-computed quantities."""
+
+    def __init__(self, message=''):
+        self.message = message
+
+    def __str__(self):
+        return 'CLASS runtime error: {}'.format(self.message)
 
 
 def val2str(val):
@@ -87,55 +89,74 @@ def _bcast_dtype(*args):
     return toret
 
 
-def flatarray(func):
-    r"""Decorator that flattens input array and reshapes the output in the same form."""
-    @functools.wraps(func)
-    def wrapper(self, *args, **kwargs):
-        toret_dtype = _bcast_dtype(args[0])
-        array = np.asarray(args[0], dtype=np.float64)
-        isscalar = array.ndim == 0
-        shape = array.shape
-        array.shape = (-1,)
-        toret = func(self, array, *args[1:], **kwargs)
-        array.shape = shape
+def flatarray(iargs=[0], dtype=np.float64):
+    """Decorator that flattens input array(s) and reshapes the output in the same form."""
+    def make_wrapper(func):
+        sig = inspect.signature(func)
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            ba = sig.bind_partial(*args, **kwargs)
+            ba.apply_defaults()
+            self, args = ba.args[0], list(ba.args[1:])
+            toret_dtype = _bcast_dtype(*[args[iarg] for iarg in iargs])
+            input_dtype = dtype
+            if input_dtype is None:
+                input_dtype = toret_dtype
+            shape = None
+            for iarg in iargs:
+                array = np.asarray(args[iarg], dtype=input_dtype)
+                if shape is not None:
+                    if array.shape != shape:
+                        raise ValueError('input arrays must have same shape, found {}, {}'.format(shape, array.shape))
+                else:
+                    shape = array.shape
+                args[iarg] = array.ravel()
 
-        def reshape(toret):
-            toret.shape = toret.shape[:-1] + shape
-            return toret.astype(dtype=toret_dtype, copy=False)
+            toret = func(self, *args, **ba.kwargs)
 
-        if isinstance(toret, dict):
-            for key, value in toret.items():
-                toret[key] = reshape(value)
-        else:
-            toret = reshape(toret)
+            def reshape(toret):
+                toret = np.asarray(toret, dtype=toret_dtype)
+                toret.shape = toret.shape[:-1] + shape
+                return toret
 
-        return toret
+            if isinstance(toret, dict):
+                for key, value in toret.items():
+                    toret[key] = reshape(value)
+            else:
+                toret = reshape(toret)
 
-    return wrapper
+            return toret
+
+        return wrapper
+
+    return make_wrapper
 
 
-def gridarray(func):
+def gridarray(iargs=[0], dtype=np.float64):
     r"""
     Decorator that shapes output as ``(x1.size, x2.size, ...)`` for input arrays ``(x1, x2, ...)``.
     Dimensions corresponding to scalar inputs are squeezed.
     """
-    @functools.wraps(func)
-    def wrapper(self, *args, **kwargs):
-        toret_dtype = _bcast_dtype(*args)
-        arrays = []; shapes = []; toret_shape = tuple()
-        for array in args:
-            array = np.asarray(array, dtype=np.float64)
-            shapes.append(array.shape)
-            toret_shape = toret_shape + array.shape
-            array.shape = (-1,)
-            arrays.append(array)
-        toret = func(self, *arrays, **kwargs)
-        for array, shape in zip(arrays, shapes):
-            array.shape = shape
-        toret.shape = toret_shape
-        return toret.astype(dtype=toret_dtype, copy=False)
+    def make_wrapper(func):
+        sig = inspect.signature(func)
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            ba = sig.bind_partial(*args, **kwargs)
+            ba.apply_defaults()
+            self, args = ba.args[0], list(ba.args[1:])
+            toret_dtype = _bcast_dtype(*[args[iarg] for iarg in iargs])
+            toret_shape = tuple()
+            for iarg in iargs:
+                array = np.asarray(args[iarg], dtype=dtype)
+                toret_shape = toret_shape + array.shape
+                args[iarg] = array.ravel()
+            toret = np.asarray(func(self, *args, **ba.kwargs), dtype=toret_dtype)
+            toret.shape = toret_shape
+            return toret
 
-    return wrapper
+        return wrapper
+
+    return make_wrapper
 
 
 def _compile_params(params):
@@ -338,12 +359,17 @@ cdef class ClassEngine:
         # non-understood parameters asked to the wrapper is a problematic
         # situation.
         if 'input' in tasks and not self.ready.ip:
-            if input_read_from_file(&self.fc, &self.pr, &self.ba, &self.th,
-                                    &self.pt, &self.tr, &self.pm, &self.hr,
-                                    &self.fo, &self.le, &self.sd, &self.op,
-                                    errmsg) == _FAILURE_:
-                raise ClassParserError(errmsg.decode(), self.get_params_str())
-
+            environ_bak = dict(os.environ)
+            try:
+                os.environ['LC_NUMERIC'] = 'C'
+                if input_read_from_file(&self.fc, &self.pr, &self.ba, &self.th,
+                                        &self.pt, &self.tr, &self.pm, &self.hr,
+                                        &self.fo, &self.le, &self.sd, &self.op,
+                                        errmsg) == _FAILURE_:
+                    raise ClassInputError(errmsg.decode(), self.get_params_str())
+            finally:
+                os.environ.clear()
+                os.environ.update(environ_bak)
             # This part is done to list all the unread parameters, for debugging
             unread_parameters = []
             for ii in range(fc.size):
@@ -372,11 +398,13 @@ cdef class ClassEngine:
 
         compute_transfer = 'transfer' in tasks and not self.ready.tr
         compute_harmonic = 'harmonic' in tasks and not self.ready.hr
-        compute_transfer |= compute_harmonic # to avoid segfault if e.g. Transfer then Harmonic
+        compute_transfer |= compute_harmonic  # to avoid segfault if e.g. Transfer then Harmonic
         compute_fourier = 'fourier' in tasks and not self.ready.fo
+        #compute_transfer |= compute_fourier
         compute_primordial = 'primordial' in tasks and not self.ready.pm
         compute_distortions = 'distortions' in tasks and not self.ready.sd
         #self.ready.pt &= not(compute_transfer or compute_harmonic or compute_fourier)
+        self.ready.pt &= not(compute_transfer or compute_harmonic)
         compute_perturbations = 'perturbations' in tasks and not self.ready.pt
         self.pt.has_cl_cmb_temperature = short(compute_harmonic or self.ready.hr)
         self.pt.has_cl_cmb_polarization = short(compute_harmonic or self.ready.hr)
@@ -385,66 +413,63 @@ cdef class ClassEngine:
         self.pt.has_density_transfers = short(compute_transfer or self.ready.tr)
         self.pt.has_velocity_transfers = short(compute_transfer or self.ready.tr)
         self.pt.has_pk_matter = short(compute_fourier or self.ready.fo)
-        # to get theta_m, theta_cb...
-        self.pt.has_cl_number_count = _TRUE_
-        self.pt.has_nc_rsd = _TRUE_
-        #self.pt.has_source_theta_cb = self.pt.has_source_delta_cb
-        #self.pt.has_source_theta_m = self.pt.has_source_delta_m
+        # to get theta_m, theta_cb, phi, psi, phi_plus_psi...
+        self.pt.has_cl_number_count = self.pt.has_nc_rsd = self.pt.has_nc_gr = _TRUE_
 
         # The following list of computation is straightforward. If the '_init'
-        # methods fail, call `struct_cleanup` and raise a ClassBadValueError
+        # methods fail, call `struct_cleanup` and raise a ClassComputationError
         # with the error message from the faulty module of CLASS.
         # print(params)
         # print(compute_background, compute_thermodynamics, compute_perturbations, compute_primordial, compute_fourier, compute_transfer, compute_harmonic, compute_lensing, compute_distortions)
         if compute_background:
             if background_init(&self.pr, &self.ba) == _FAILURE_:
-                raise ClassBadValueError(self.ba.error_message.decode())
+                raise ClassComputationError(self.ba.error_message.decode())
             self.ready.ba = True
 
         if compute_thermodynamics:
             if thermodynamics_init(&self.pr, &self.ba, &self.th) == _FAILURE_:
-                raise ClassBadValueError(self.th.error_message.decode())
+                raise ClassComputationError(self.th.error_message.decode())
             self.ready.th = True
 
         if compute_perturbations:
             if perturbations_init(&self.pr, &self.ba, &self.th, &self.pt) == _FAILURE_:
-                raise ClassBadValueError(self.pt.error_message.decode())
+                raise ClassComputationError(self.pt.error_message.decode())
             self.ready.pt = True
 
         if compute_primordial:
             if primordial_init(&self.pr, &self.pt, &self.pm) == _FAILURE_:
-                raise ClassBadValueError(self.pm.error_message.decode())
+                raise ClassComputationError(self.pm.error_message.decode())
             self.ready.pm = True
 
         if compute_fourier:
             if fourier_init(&self.pr, &self.ba, &self.th,
                             &self.pt, &self.pm, &self.fo) == _FAILURE_:
-                raise ClassBadValueError(self.fo.error_message.decode())
+                raise ClassComputationError(self.fo.error_message.decode())
             self.ready.fo = True
 
         if compute_transfer:
             if transfer_init(&self.pr, &self.ba, &self.th,
                              &self.pt, &self.fo, &self.tr) == _FAILURE_:
-                raise ClassBadValueError(self.tr.error_message.decode())
+                raise ClassComputationError(self.tr.error_message.decode())
             self.ready.tr = True
 
         if compute_harmonic:
             if harmonic_init(&self.pr, &self.ba, &self.pt,
                              &self.pm, &self.fo, &self.tr,
                              &self.hr) == _FAILURE_:
-                raise ClassBadValueError(self.hr.error_message.decode())
+                raise ClassComputationError(self.hr.error_message.decode())
             self.ready.hr = True
 
         if compute_lensing:
             if lensing_init(&(self.pr), &(self.pt), &(self.hr),
                             &(self.fo), &(self.le)) == _FAILURE_:
-                raise ClassBadValueError(self.le.error_message.decode())
+                raise ClassComputationError(self.le.error_message.decode())
             self.ready.le = True
 
         if compute_distortions:
             if distortions_init(&(self.pr), &(self.ba), &(self.th),
                                 &(self.pt), &(self.pm), &(self.sd)) == _FAILURE_:
-                raise ClassBadValueError(self.sd.error_message.decode())
+                raise ClassComputationError(self.sd.error_message.decode())
             self.ready.sd = True
 
         # At this point, the cosmological instance contains everything needed. The
@@ -477,7 +502,7 @@ cdef class Background:
         self.ba = &self.engine.ba
         self._RH0_ = rho_crit_Msunph_per_Mpcph3 / self.ba.H0**2
         self.Omega0_pncdm_tot = self.Omega_pncdm_tot(0.0)
-        self.Omega0_pncdm = self.Omega_pncdm(0.0, None)
+        self.Omega0_pncdm = self.Omega_pncdm(0.0, species=None)
 
     property Omega0_b:
         r"""Current density parameter of baryons :math:`\Omega_{b,0}`, unitless."""
@@ -528,6 +553,11 @@ cdef class Background:
         r"""Current density parameter of curvaturve :math:`\Omega_{k,0}`, unitless."""
         def __get__(self):
             return self.ba.Omega0_k
+
+    property K:
+        r"""Curvature parameter, in :math:`(h/\mathrm{Mpc})^{2}`."""
+        def __get__(self):
+            return self.ba.K / self.h**2
 
     property Omega0_dcdm:
         r"""Current density parameter of decaying cold dark matter :math:`\Omega_{dcdm,0}`, unitless."""
@@ -606,7 +636,7 @@ cdef class Background:
         def __get__(self):
             return self.m_ncdm.sum()
 
-    property age0:
+    property age:
         r"""The current age of the Universe, in :math:`\mathrm{Gy}`."""
         def __get__(self):
             return self.ba.age
@@ -630,14 +660,14 @@ cdef class Background:
         r"""The current ncdm temperature for each species as an array, in :math:`K`."""
         def __get__(self):
             T = np.array([self.ba.T_ncdm[i] for i in range(self.N_ncdm)], dtype=np.float64)
-            return T*self.ba.T_cmb # from units of photon temp to K
+            return T * self.ba.T_cmb # from units of photon temp to K
 
-    @flatarray
+    @flatarray()
     def T_cmb(self, z):
         r"""The CMB temperature, in :math:`K`."""
         return self.T0_cmb * (1 + z)
 
-    @flatarray
+    @flatarray()
     def T_ncdm(self, z):
         r"""
         The ncdm temperature (massive neutrinos), in :math:`K`.
@@ -672,7 +702,7 @@ cdef class Background:
                     toret[iz] = pvecback[column]
         return np.asarray(toret)
 
-    @flatarray
+    @flatarray()
     def rho_g(self, z):
         r"""Comoving density of photons :math:`\rho_{g}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`.
 
@@ -682,37 +712,37 @@ cdef class Background:
         """
         return self._get_z(z, self.ba.index_bg_rho_g) * self._RH0_ / (1 + z)**3
 
-    @flatarray
+    @flatarray()
     def rho_b(self, z):
         r"""Comoving density of baryons :math:`\rho_{b}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         return self._get_z(z, self.ba.index_bg_rho_b) * self._RH0_ / (1 + z)**3
 
-    @flatarray
+    @flatarray()
     def rho_m(self, z):
-        r"""Comoving density of matter :math:`\rho_{b}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
+        r"""Comoving density of matter :math:`\rho_{m}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         return self._get_z(z, self.ba.index_bg_Omega_m) * self.rho_crit(z)
 
-    @flatarray
+    @flatarray()
     def rho_r(self, z):
         r"""Comoving density of radiation :math:`\rho_{r}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         return self._get_z(z, self.ba.index_bg_Omega_r) * self.rho_crit(z)
 
-    @flatarray
+    @flatarray()
     def rho_cdm(self, z):
         r"""Comoving density of cold dark matter :math:`\rho_{cdm}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         return self._get_z(z, self.ba.index_bg_rho_cdm, self.ba.has_cdm) * self._RH0_ / (1 + z)**3
 
-    @flatarray
+    @flatarray()
     def rho_ur(self, z):
         r"""Comoving density of ultra-relativistic radiation (massless neutrinos) :math:`\rho_{ur}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         return self._get_z(z, self.ba.index_bg_rho_ur, self.ba.has_ur) * self._RH0_ / (1 + z)**3
 
-    @flatarray
+    @flatarray()
     def rho_dcdm(self, z):
         r"""Comoving density of decaying cold dark matter :math:`\rho_{dcdm}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         return self._get_z(z, self.ba.index_bg_rho_dcdm, self.ba.has_dcdm) * self._RH0_ / (1 + z)**3
 
-    @flatarray
+    @flatarray()
     def rho_ncdm(self, z, species=None):
         r"""
         Comoving density of non-relativistic part of massive neutrinos for each species, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`.
@@ -726,11 +756,12 @@ cdef class Background:
         assert 0 <= species < self.N_ncdm
         return self._get_z(z, self.ba.index_bg_rho_ncdm1 + species, self.ba.has_ncdm) * self._RH0_ / (1 + z)**3
 
+    @flatarray()
     def rho_ncdm_tot(self, z):
         r"""Total comoving density of non-relativistic part of massive neutrinos, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         return np.sum(self.rho_ncdm(z, species=None), axis=0)
 
-    @flatarray
+    @flatarray()
     def rho_crit(self, z):
         r"""
         Comoving critical density excluding curvature :math:`\rho_{c}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`.
@@ -743,7 +774,7 @@ cdef class Background:
         """
         return self._get_z(z, self.ba.index_bg_rho_crit) * self._RH0_ / (1 + z)**3
 
-    @flatarray
+    @flatarray()
     def rho_k(self, z):
         r"""
         Comoving density of curvature :math:`\rho_{k}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`.
@@ -756,12 +787,12 @@ cdef class Background:
         """
         return -self.ba.K * (1. + z)**2 * self._RH0_ / (1 + z)**3
 
-    @flatarray
+    @flatarray()
     def rho_tot(self, z):
         r"""Comoving total density :math:`\rho_{\mathrm{tot}}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         return self.rho_crit(z) - self.rho_k(z)
 
-    @flatarray
+    @flatarray()
     def rho_fld(self, z):
         r"""Comoving density of dark energy fluid :math:`\rho_{\mathrm{fld}}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         if self.ba.has_fld:
@@ -769,7 +800,7 @@ cdef class Background:
         # return zeros of the right shape
         return self._get_z(z, self.ba.index_bg_a) * 0.0
 
-    @flatarray
+    @flatarray()
     def rho_Lambda(self, z):
         r"""Comoving density of cosmological constant :math:`\rho_{\Lambda}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         if self.ba.has_lambda:
@@ -777,7 +808,7 @@ cdef class Background:
         # return zeros of the right shape
         return self._get_z(z, self.ba.index_bg_a) * 0.0
 
-    @flatarray
+    @flatarray()
     def rho_de(self, z):
         r"""Total comoving density of dark energy :math:`\rho_{\mathrm{de}}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`.
 
@@ -789,7 +820,7 @@ cdef class Background:
         """
         return self.rho_fld(z) + self.rho_Lambda(z)
 
-    @flatarray
+    @flatarray()
     def p_ncdm(self, z, species=None):
         r"""
         Comoving pressure of non-relativistic part of massive neutrinos for each species, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`.
@@ -803,11 +834,12 @@ cdef class Background:
         assert 0 <= species < self.N_ncdm
         return self._get_z(z, self.ba.index_bg_p_ncdm1 + species, self.ba.has_ncdm) * self._RH0_ / (1 + z)**3
 
+    @flatarray()
     def p_ncdm_tot(self, z):
         r"""Total comoving pressure of non-relativistic part of massive neutrinos, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         return np.sum(self.p_ncdm(z, species=None), axis=0)
 
-    @flatarray
+    @flatarray()
     def Omega_r(self, z):
         r"""
         Density parameter of relativistic (radiation-like) component, including
@@ -815,7 +847,7 @@ cdef class Background:
         """
         return self.rho_r(z) / self.rho_crit(z)
 
-    @flatarray
+    @flatarray()
     def Omega_m(self, z):
         r"""
         Density parameter of non-relativistic (matter-like) component, including
@@ -823,37 +855,37 @@ cdef class Background:
         """
         return self.rho_m(z) / self.rho_crit(z)
 
-    @flatarray
+    @flatarray()
     def Omega_g(self, z):
         r"""Density parameter of photons, unitless."""
         return self.rho_g(z) / self.rho_crit(z)
 
-    @flatarray
+    @flatarray()
     def Omega_b(self, z):
         r"""Density parameter of baryons, unitless."""
         return self.rho_b(z) / self.rho_crit(z)
 
-    @flatarray
+    @flatarray()
     def Omega_cdm(self, z):
         r"""Density parameter of cold dark matter, unitless."""
         return self.rho_cdm(z) / self.rho_crit(z)
 
-    @flatarray
+    @flatarray()
     def Omega_k(self, z):
         r"""Density parameter of curvature, unitless."""
-        return 1 - self.rho_tot(z)/self.rho_crit(z)
+        return 1 - self.rho_tot(z) / self.rho_crit(z)
 
-    @flatarray
+    @flatarray()
     def Omega_ur(self, z):
         r"""Density parameter of ultra relativistic neutrinos, unitless."""
         return self.rho_ur(z) / self.rho_crit(z)
 
-    @flatarray
+    @flatarray()
     def Omega_dcdm(self, z):
         r"""Density parameter of decaying cold dark matter, unitless."""
         return self.rho_dcdm(z) / self.rho_crit(z)
 
-    @flatarray
+    @flatarray()
     def Omega_ncdm(self, z, species=None):
         r"""
         Density parameter of massive neutrinos, unitless.
@@ -862,12 +894,12 @@ cdef class Background:
         """
         return self.rho_ncdm(z, species=species) / self.rho_crit(z)
 
-    @flatarray
+    @flatarray()
     def Omega_ncdm_tot(self, z):
         r"""Total density parameter of massive neutrinos, unitless."""
         return self.rho_ncdm_tot(z) / self.rho_crit(z)
 
-    @flatarray
+    @flatarray()
     def Omega_pncdm(self, z, species=None):
         r"""
         Density parameter of pressure of non-relativistic part of massive neutrinos, unitless.
@@ -876,32 +908,32 @@ cdef class Background:
         """
         return 3 * self.p_ncdm(z, species=species) / self.rho_crit(z)
 
-    @flatarray
+    @flatarray()
     def Omega_pncdm_tot(self, z):
         r"""Total density parameter of pressure of non-relativistic part of massive neutrinos, unitless."""
         return 3 * self.p_ncdm_tot(z) / self.rho_crit(z)
 
-    @flatarray
+    @flatarray()
     def Omega_fld(self, z):
         r"""Density parameter of dark energy (fluid), unitless."""
         return self.rho_fld(z) / self.rho_crit(z)
 
-    @flatarray
+    @flatarray()
     def Omega_Lambda(self, z):
         r"""Density of cosmological constant, unitless."""
         return self.rho_Lambda(z) / self.rho_crit(z)
 
-    @flatarray
+    @flatarray()
     def Omega_de(self, z):
         r"""Total density of dark energy (fluid + cosmological constant), unitless."""
         return self.rho_de(z) / self.rho_crit(z)
 
-    @flatarray
+    @flatarray()
     def time(self, z):
         r"""Proper time (age of universe), in :math:`\mathrm{Gy}`."""
         return self._get_z(z, self.ba.index_bg_time) / _Gyr_over_Mpc_
 
-    @flatarray
+    @flatarray()
     def comoving_radial_distance(self, z):
         r"""
         Comoving radial distance, in :math:`\mathrm{Mpc}/h`.
@@ -910,17 +942,17 @@ cdef class Background:
         """
         return self._get_z(z, self.ba.index_bg_conf_distance) * self.ba.h
 
-    @flatarray
+    @flatarray()
     def conformal_time(self, z):
         r"""Conformal time, in :math:`\mathrm{Mpc}/h`."""
         return self._get_z(z, self.ba.index_bg_conf_distance) * self.ba.h
 
-    @flatarray
+    @flatarray()
     def hubble_function(self, z):
         r"""Hubble function ``ba.index_bg_H``, in :math:`\mathrm{km}/\mathrm{s}/\mathrm{Mpc}`."""
         return self._get_z(z, self.ba.index_bg_H) * _c_ / 1e3
 
-    @flatarray
+    @flatarray()
     def hubble_function_prime(self, z):
         r"""
         Derivative of Hubble function: :math:`dH/d\tau`, where :math:`d\tau/da = 1 / (a^{2} H)`, in :math:`\mathrm{km}/\mathrm{s}`.
@@ -929,18 +961,18 @@ cdef class Background:
         """
         return self._get_z(z, self.ba.index_bg_H_prime) * _c_ / 1e3
 
-    @flatarray
+    @flatarray()
     def efunc(self, z):
         r"""Function giving :math:`E(z)`, where the Hubble parameter is defined as :math:`H(z) = H_{0} E(z)`, unitless."""
         return self._get_z(z, self.ba.index_bg_H) / self.ba.H0
 
-    @flatarray
+    @flatarray()
     def efunc_prime(self, z):
         r"""Function giving :math:`dE(z) / da`, unitless."""
         dtau_da = (1 + z)**2 / self.hubble_function(z)
         return self.hubble_function_prime(z) / self.ba.H0 * dtau_da
 
-    @flatarray
+    @flatarray()
     def luminosity_distance(self, z):
         r"""
         Luminosity distance, in :math:`\mathrm{Mpc}/h`.
@@ -949,7 +981,7 @@ cdef class Background:
         """
         return self._get_z(z, self.ba.index_bg_lum_distance) * self.ba.h
 
-    @flatarray
+    @flatarray()
     def angular_diameter_distance(self, z):
         r"""
         Proper angular diameter distance, in :math:`\mathrm{Mpc}/h`.
@@ -958,7 +990,7 @@ cdef class Background:
         """
         return self._get_z(z, self.ba.index_bg_ang_distance) * self.ba.h
 
-    @flatarray
+    @flatarray()
     def comoving_angular_distance(self, z):
         r"""
         Comoving angular distance, in :math:`\mathrm{Mpc}/h`.
@@ -967,7 +999,26 @@ cdef class Background:
         """
         return self.angular_diameter_distance(z) * (1. + z)
 
-    @flatarray
+    @flatarray(iargs=[0, 1])
+    def angular_diameter_distance_2(self, z1, z2):
+        r"""
+        Angular diameter distance of object at :math:`z_{2}` as seen by observer at :math:`z_{1}`,
+        that is, :math:`S_{K}((\chi(z_{2}) - \chi(z_{1})) \sqrt{|K|}) / \sqrt{|K|} / (1 + z_{2})`,
+        where :math:`S_{K}` is the identity if :math:`K = 0`, :math:`\sin` if :math:`K < 0`
+        and :math:`\sinh` if :math:`K > 0`.
+        """
+        if np.any(z2 < z1):
+            import warnings
+            warnings.warn(f"Second redshift(s) z2 ({z2}) is less than first redshift(s) z1 ({z1}).")
+        chi1, chi2 = self.comoving_radial_distance(z1), self.comoving_radial_distance(z2)
+        K = self.K
+        if K == 0:
+            return (chi2 - chi1) / (1 + z2)
+        elif K > 0:
+            return np.sin(np.sqrt(K) * (chi2 - chi1)) / np.sqrt(K) / (1 + z2)
+        return np.sinh(np.sqrt(-K) * (chi2 - chi1)) / np.sqrt(-K) / (1 + z2)
+
+    @flatarray()
     def growth_factor(self, z):
         r"""
         Return the scale invariant growth factor :math:`D(a)` for cold dark matter perturbations, unitless.
@@ -982,7 +1033,7 @@ cdef class Background:
         """
         return self._get_z(z, self.ba.index_bg_D)
 
-    @flatarray
+    @flatarray()
     def growth_rate(self, z):
         r"""
         Return the scale invariant growth rate :math:`d\mathrm{ln}D/d\mathrm{ln}a` for cold dark matter perturbations.
@@ -1093,6 +1144,14 @@ cdef class Thermodynamics:
         def __get__(self):
             return self.th.rs_star / self.th.da_star / (1. + self.th.z_star)
 
+    property YHe:
+        r"""
+        Helium mass fraction :math:`\rho_{He}/(\rho_{H} + \rho_{He})`, unitless.
+        Close but not exactly equal to the density fraction :math:`4 n_{He}/(n_{H} + 4 n_{He})`.
+        """
+        def __get__(self):
+            return self.th.YHe
+
     def table(self):
         r"""
         Return thermodynamics table.
@@ -1167,7 +1226,7 @@ cdef class Primordial:
         def __get__(self):
             return self.pm.k_pivot / self.ba.h
 
-    @flatarray
+    @flatarray()
     @cython.boundscheck(False)
     def pk_k(self, double[:] k, mode='scalar'):
         r"""
@@ -1215,7 +1274,7 @@ cdef class Primordial:
             # linear: all pks (contrary to cross-terms in logarithmic mode)
             data = np.asarray(data) * self.ba.h**3
         else:
-            data[:,:] = 0.
+            data[:, :] = 0.
 
         if len(ic_keys) > 1:
             toret = {}
@@ -1333,7 +1392,7 @@ cdef class Perturbations:
         cdef double[:, :] datak
         modes = ['scalar', 'vector', 'tensor']
         if mode not in modes:
-            raise ClassBadValueError('mode should be one of {}'.format(mode))
+            raise ClassComputationError('mode should be one of {}'.format(mode))
         if mode == 'scalar' and self.pt.has_scalars:
             titles = self.pt.scalar_titles
             data = self.pt.scalar_perturbations_data
@@ -1385,7 +1444,7 @@ cdef class Perturbations:
         modes = list(has_flags.keys())
 
         if mode not in modes:
-            raise ClassBadValueError('mode must be one of {}'.format(modes))
+            raise ClassComputationError('mode must be one of {}'.format(modes))
         return has_flags[mode]
 
 
@@ -1544,7 +1603,7 @@ cdef class Harmonic:
                 if flag == _FALSE_: continue
             elif name not in of: continue
             elif name in of and flag == _FALSE_:
-                raise ClassBadValueError('You asked for {}, but it has not been calculated.'.format(name))
+                raise ClassComputationError('You asked for {}, but it has not been calculated.'.format(name))
             indices[name] = index
 
         names = list(indices.keys())
@@ -1606,7 +1665,7 @@ cdef class Harmonic:
                 if flag == _FALSE_: continue
             elif name not in of: continue
             elif name in of and flag == _FALSE_:
-                raise ClassBadValueError('You asked for lensed {}, but it has not been calculated. Please set lensing = yes.'.format(name))
+                raise ClassComputationError('You asked for lensed {}, but it has not been calculated. Please set lensing = yes.'.format(name))
             indices[name] = index
 
         names = list(indices.keys())
@@ -1696,7 +1755,7 @@ cdef class Fourier:
         def __get__(self):
             return self.fo.sigma8[self.fo.index_pk_cb]
 
-    @gridarray
+    @gridarray(iargs=[0, 1])
     @cython.boundscheck(False)
     def sigma_rz(self, double[:] r, double[:] z, of='delta_m'):
         r"""
@@ -1726,11 +1785,11 @@ cdef class Fourier:
         with nogil:
             for ir in range(r_size):
                 for iz in range(z_size):
-                    if fourier_sigmas_at_z(self.pr, self.ba, self.fo, r[ir]/self.ba.h, z[iz], index, out_sigma, &(toret[ir, iz])) == _FAILURE_:
-                        toret[ir,iz] = NAN
+                    if fourier_sigmas_at_z(self.pr, self.ba, self.fo, r[ir] / self.ba.h, z[iz], index, out_sigma, &(toret[ir, iz])) == _FAILURE_:
+                        toret[ir, iz] = NAN
         return np.asarray(toret)
 
-    @flatarray
+    @flatarray()
     def sigma8_z(self, z, of='delta_m'):
         r"""Return the r.m.s. of `of` perturbations in sphere of :math:`8 \mathrm{Mpc}/h`."""
         return self.sigma_rz(8., z, of=of)
@@ -1738,7 +1797,7 @@ cdef class Fourier:
     def _index_pk_of(self, of='delta_m'):
         r"""Helper routine that returns index of `of` power spectrum."""
         of = self._check_pk_of(of)
-        return {'delta_m':self.fo.index_pk_m, 'delta_cb':self.fo.index_pk_cb}[of]
+        return {'delta_m': self.fo.index_pk_m, 'delta_cb': self.fo.index_pk_cb}[of]
 
     def _check_pk_of(self, of='delta_m', silent=True):
         r"""Helper routine that checks requested perturbed quantity `of` has been calculated."""
@@ -1761,7 +1820,7 @@ cdef class Fourier:
                                     'add e.g. "halofit" or "HMcode" in "non_linear"')
         return pk_linear
 
-    @gridarray
+    @gridarray(iargs=[0, 1])
     def pk_kz(self, np.ndarray k, np.ndarray z, non_linear=False, of='delta_m'):
         r"""
         Return power spectrum, in :math:`(\mathrm{Mpc}/h)^{3}`.
@@ -1813,8 +1872,8 @@ cdef class Fourier:
 
         of : string, tuple, default='delta_m'
             Perturbed quantities.
-            Either 'delta_m' for matter perturbations or 'delta_cb' for cold dark matter + baryons perturbations will use precomputed spectra.
-            Else, e.g. ('delta_m', 'theta_cb') for the cross matter density - cold dark matter + baryons velocity power spectra, are computed on-the-fly.
+            'delta_m' for matter perturbations, 'delta_cb' for cold dark matter + baryons, 'phi', 'psi' for Bardeen potentials, or 'phi_plus_psi' for Weyl potential.
+            Provide a tuple, e.g. ('delta_m', 'theta_cb') for the cross matter density - cold dark matter + baryons velocity power spectra.
 
         Returns
         -------
@@ -1846,7 +1905,7 @@ cdef class Fourier:
                                     'any P(k,z) calculations for z>0; pass either a list of z in "z_pk" or one non-zero value in "z_max_pk"')
 
         for index_tau in range(self.fo.ln_tau_size):
-            if index_tau == self.fo.ln_tau_size-1:
+            if index_tau == self.fo.ln_tau_size - 1:
                 z[index_tau] = 0.
             elif background_z_of_tau(self.ba, exp(self.fo.ln_tau[index_tau]), &(z[index_tau])) == _FAILURE_:
                 raise ClassRuntimeError(self.ba.error_message.decode())
@@ -1856,14 +1915,16 @@ cdef class Fourier:
                 raise ClassRuntimeError(self.ba.error_message.decode())
             z_max_requested = z[0]
             if ((self.fo.tau_size - self.fo.ln_tau_size) < self.fo.index_tau_min_nl):
-                raise ClassRuntimeError('table() is trying to return P(k,z) up to z_max={:.3f} (to encompass your requested maximum value of z); '
+                raise ClassRuntimeError('table() is trying to return P(k, z) up to z_max={:.3f} (to encompass your requested maximum value of z); '
                                         'but the input parameters sent to CLASS were such that the non-linear P(k,z) could only be consistently computed up to z={:.3f}; '
                                         'increase the input parameter "P_k_max_h/Mpc" or "P_k_max_1/Mpc", or increase the precision parameters "halofit_min_k_max" and/or '
                                         '"hmcode_min_k_max", or decrease your requested z_max'.format(z_max_requested, z_max_non_linear))
 
-        if not isinstance(of, (tuple, list)):
-            of = (of, of)
+        if isinstance(of, str): of = (of,)
+        of = list(of)
+        of = of + [of[0]] * (2 - len(of))
 
+        # Use precomputed spectra
         if of[0] == of[1] and of[0] in ['delta_m', 'delta_cb']:
             index_tp1 = self._index_pk_of(of[0])
             with nogil:
@@ -1875,16 +1936,19 @@ cdef class Fourier:
                             pk_at_k_z[index_k, index_tau] = exp(self.fo.ln_pk_l[index_tp1][index_tau * self.fo.k_size + index_k])
 
         elif non_linear:
-            raise ClassBadValueError('Non-linear power spectrum is computed for auto delta_m and delta_cb only')
+            raise ClassComputationError('Non-linear power spectrum is computed for auto delta_m and delta_cb only')
 
         else:
             primordial_pk = <double*> malloc(self.fo.ic_ic_size*sizeof(double))
             pvecback = np.empty(self.ba.bg_size, dtype=np.float64)
-            indices = {'delta_m':self.pt.index_tp_delta_m,
-                       'delta_cb':self.pt.index_tp_delta_cb if self.pt.has_source_delta_cb == _TRUE_ else self.pt.index_tp_delta_m,
-                       'theta_m':self.pt.index_tp_theta_m,
-                       'theta_cb':self.pt.index_tp_theta_cb if self.pt.has_source_theta_cb == _TRUE_ else self.pt.index_tp_theta_m}
-            index_tp1,index_tp2 = indices[of[0]], indices[of[1]]
+            indices = {'delta_m': self.pt.index_tp_delta_m,
+                       'delta_cb': self.pt.index_tp_delta_cb if self.pt.has_source_delta_cb == _TRUE_ else self.pt.index_tp_delta_m,
+                       'theta_m': self.pt.index_tp_theta_m,
+                       'theta_cb': self.pt.index_tp_theta_cb if self.pt.has_source_theta_cb == _TRUE_ else self.pt.index_tp_theta_m,
+                       'phi': self.pt.index_tp_phi,
+                       'psi': self.pt.index_tp_psi,
+                       'phi_plus_psi': self.pt.index_tp_phi_plus_psi}
+            index_tp1, index_tp2 = indices[of[0]], indices[of[1]]
             ntheta = sum(of_.startswith('theta_') for of_ in of)
 
             with nogil:
@@ -1892,7 +1956,7 @@ cdef class Fourier:
                     if ntheta > 0:
                         if background_at_z(self.ba, z[index_tau], long_info, inter_normal, &last_index, &pvecback[0]) == _FAILURE_:
                             raise ClassRuntimeError(self.ba.error_message.decode())
-                        factor_z = 1. / (-pvecback[self.ba.index_bg_H]*pvecback[self.ba.index_bg_a])**ntheta
+                        factor_z = 1. / (-pvecback[self.ba.index_bg_H] * pvecback[self.ba.index_bg_a])**ntheta
                     else:
                         factor_z = 1.
                     for index_k in range(self.fo.k_size):
@@ -1911,8 +1975,8 @@ cdef class Fourier:
                                 source_tp2_ic1 = source_tp1_ic1
                             sumpk += factor_k * source_tp1_ic1 * source_tp2_ic1 * exp(primordial_pk[index_ic1_ic1])
                             for index_ic2 in range(index_ic1+1, self.fo.ic_size):
-                                index_ic1_ic2 = index_symmetric_matrix(index_ic1, index_ic2,self.fo.ic_size)
-                                index_ic2_ic2 = index_symmetric_matrix(index_ic2, index_ic2,self.fo.ic_size)
+                                index_ic1_ic2 = index_symmetric_matrix(index_ic1, index_ic2, self.fo.ic_size)
+                                index_ic2_ic2 = index_symmetric_matrix(index_ic2, index_ic2, self.fo.ic_size)
                                 if self.fo.is_non_zero[index_ic1_ic2] == _TRUE_:
                                     if fourier_get_source(self.ba, self.pt, self.fo, index_k, index_ic2, index_tp1, index_tau, sources, &source_tp1_ic2) == _FAILURE_:
                                         raise ClassRuntimeError(self.fo.error_message.decode())

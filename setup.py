@@ -46,7 +46,7 @@ def build_class(build_dir, branch='base'):
 
 
 class custom_build_ext(build_ext):
-    """Custom extension building to grab include directories from the ``build_clib`` command."""
+    """Custom extension building to grab include directories from the ``build_ext`` command."""
 
     def finalize_options(self):
         build_ext.finalize_options(self)
@@ -80,7 +80,7 @@ class custom_build_ext(build_ext):
 class custom_develop(develop):
 
     def run(self):
-        self.run_command('build_ext')
+        #self.run_command('build_ext')
         build_ext = self.get_finalized_command('build_ext')
         for branch in find_branches():
             for name in ['external', 'data']:
@@ -170,7 +170,6 @@ def classy_extension_config(branch):
 
 
 if __name__ == '__main__':
-
 
     setup(name=package_basename,
           version=version,
