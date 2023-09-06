@@ -312,17 +312,14 @@ cdef class ClassEngine:
     def __cinit__(self, *args, **kwargs):
         memset(&self.ready, 0, sizeof(self.ready))
 
-    def get_params(self):
+    def get_params(self, return_type='dict'):
         r"""Return parameter dictionary as passed to CLASS."""
-        if not self.ready.fc: return {}
-        lines = [(self.fc.name[i].decode(), self.fc.value[i].decode()) for i in range(self.fc.size)]
-        return dict(lines)
-
-    def get_params_str(self):
-        r"""Return parameter dictionary as string."""
-        if not self.ready.fc: return ''
-        lines = ['{} = {}'.format(self.fc.name[i].decode(), self.fc.value[i].decode()) for i in range(self.fc.size)]
-        return '\n'.join(lines)
+        if not self.ready.fc:
+            toret = {}
+        toret = {self.fc.name[i].decode(): self.fc.value[i].decode() for i in range(self.fc.size)}
+        if return_type == 'dict':
+            return toret
+        return '\n'.join(['{} = {}'.format(name, value) for name, value in toret.items()])
 
     def __dealloc__(self):
         r"""Free C structures."""
@@ -366,7 +363,7 @@ cdef class ClassEngine:
                                         &self.pt, &self.tr, &self.pm, &self.hr,
                                         &self.fo, &self.le, &self.sd, &self.op,
                                         errmsg) == _FAILURE_:
-                    raise ClassInputError(errmsg.decode(), self.get_params_str())
+                    raise ClassInputError(errmsg.decode(), self.get_params(return_type='str'))
             finally:
                 os.environ.clear()
                 os.environ.update(environ_bak)
@@ -382,7 +379,6 @@ cdef class ClassEngine:
             self.ready.ip = True
             self.l_scalar_max = self.pt.l_scalar_max
 
-        params = self.get_params()
         def short(b):
             return _TRUE_ if b else _FALSE_
 
@@ -419,7 +415,7 @@ cdef class ClassEngine:
         # The following list of computation is straightforward. If the '_init'
         # methods fail, call `struct_cleanup` and raise a ClassComputationError
         # with the error message from the faulty module of CLASS.
-        # print(params)
+        # print(self.get_params())
         # print(compute_background, compute_thermodynamics, compute_perturbations, compute_primordial, compute_fourier, compute_transfer, compute_harmonic, compute_lensing, compute_distortions)
         if compute_background:
             if background_init(&self.pr, &self.ba) == _FAILURE_:
@@ -1212,14 +1208,34 @@ cdef class Primordial:
             return np.log(1e10 * self.A_s)
 
     property n_s:
-        r"""Power-law index i.e. tilt of the primordial power spectrum, unitless."""
+        r"""Power-law scalar index i.e. tilt of the primordial scalar power spectrum, unitless."""
         def __get__(self):
             return self.pm.n_s
 
     property alpha_s:
-        r"""Running of the spectral index at :math:`k_\mathrm{pivot}`, unitless."""
+        r"""Running of the scalar spectral index at :math:`k_\mathrm{pivot}`, unitless."""
         def __get__(self):
             return self.pm.alpha_s
+
+    property beta_s:
+        r"""Running of the running of the scalar spectral index at :math:`k_\mathrm{pivot}`, unitless."""
+        def __get__(self):
+            return self.pm.beta_s
+
+    property r:
+        r"""Tensor-to-scalar power spectrum ratio at :math:`k_\mathrm{pivot}`, unitless."""
+        def __get__(self):
+            return self.pm.r
+
+    property n_t:
+        r"""Power-law tensor index i.e. tilt of the tensor primordial power spectrum, unitless."""
+        def __get__(self):
+            return self.pm.n_t
+
+    property alpha_t:
+        r"""Running of the tensor spectral index at :math:`k_\mathrm{pivot}`, unitless."""
+        def __get__(self):
+            return self.pm.alpha_t
 
     property k_pivot:
         r"""Primordial power spectrum pivot scale, where the primordial power is equal to :math:`A_{s}`, in :math:`h/\mathrm{Mpc}`."""
@@ -1235,7 +1251,7 @@ cdef class Primordial:
 
         .. math::
 
-            \mathcal{P_R}(k) = A_s \left (\frac{k}{k_\mathrm{pivot}} \right )^{n_s - 1 + 1/2 \alpha_s \ln(k/k_\mathrm{pivot})}
+            \mathcal{P_R}(k) = A_s \left (\frac{k}{k_\mathrm{pivot}} \right )^{n_s - 1 + 1/2 \alpha_s \ln(k/k_\mathrm{pivot}) + 1/6 \beta_s \ln(k/k_\mathrm{pivot})^2}
 
         See also: eq. 2 of `this reference <https://arxiv.org/abs/1303.5076>`_.
 
