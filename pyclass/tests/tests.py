@@ -115,11 +115,20 @@ def test_primordial():
 
 def test_perturbations():
     #cosmo = ClassEngine({'output': 'dTk vTk mPk', 'P_k_max_h/Mpc': 20., 'z_max_pk': 100.0, 'k_output_values':'0.01, 0.2'})
-    cosmo = ClassEngine({'P_k_max_h/Mpc': 20., 'z_max_pk': 100.0, 'k_output_values': '0.01, 0.2', 'modes': 's,t'})
+    params = {'P_k_max_h/Mpc': 20., 'z_max_pk': 100.0, 'k_output_values': '0.01, 0.2', 'modes': 's,t', 'A_s': 2e-9}
+    cosmo = ClassEngine(params)
     pt = Perturbations(cosmo)
-    t = pt.table()
-    assert len(t) == 2
-    assert t[0]['tau [Mpc]'].ndim == 1
+    t1 = pt.table()
+    assert len(t1) == 2
+    assert t1[0]['tau [Mpc]'].ndim == 1
+    sigma81 = Fourier(cosmo).sigma8_m
+    params.update(A_s=3e-9)
+    cosmo = ClassEngine(params)
+    t2 = Perturbations(cosmo).table()
+    sigma82 = Fourier(cosmo).sigma8_m
+    for name in t2[-1].dtype.names:
+        assert np.allclose(t2[-1][name], t1[-1][name]), name
+    assert np.allclose(sigma82 / sigma81, (3. / 2.)**0.5)
 
 
 def test_transfer():
@@ -240,7 +249,7 @@ def test_error():
 
 if __name__ == '__main__':
 
-    #test_classy()
+    test_classy()
     test_params()
     test_task_dependency()
     test_background()

@@ -1,5 +1,5 @@
 DEST?=_inst
-URL?=https://github.com/adematti/class_public/archive/refs/tags/v3.2.0b.tar.gz
+URL?=https://github.com/adematti/class_public/archive/refs/tags/v3.2.1b.tar.gz
 #URL?=
 
 TARBALL=tmp-class.tar.gz

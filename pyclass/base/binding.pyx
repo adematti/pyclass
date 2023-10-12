@@ -720,7 +720,7 @@ cdef class Background:
 
     @flatarray()
     def rho_r(self, z):
-        r"""Comoving density of radiation :math:`\rho_{r}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
+        r"""Comoving density of radiation :math:`\rho_{r}`, including photons and relativistic part of massive and massless neutrinos, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         return self._get_z(z, self.ba.index_bg_Omega_r) * self.rho_crit(z)
 
     @flatarray()
@@ -730,7 +730,7 @@ cdef class Background:
 
     @flatarray()
     def rho_ur(self, z):
-        r"""Comoving density of ultra-relativistic radiation (massless neutrinos) :math:`\rho_{ur}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
+        r"""Comoving density of massless neutrinos :math:`\rho_{ur}`, in :math:`10^{10} M_{\odot}/h / (\mathrm{Mpc}/h)^{3}`."""
         return self._get_z(z, self.ba.index_bg_rho_ur, self.ba.has_ur) * self._RH0_ / (1 + z)**3
 
     @flatarray()
@@ -837,10 +837,7 @@ cdef class Background:
 
     @flatarray()
     def Omega_r(self, z):
-        r"""
-        Density parameter of relativistic (radiation-like) component, including
-        relativistic part of massive neutrino and massless neutrino, unitless.
-        """
+        r"""Density parameter of radiation, including photons and relativistic part of massive and massless neutrinos, unitless."""
         return self.rho_r(z) / self.rho_crit(z)
 
     @flatarray()
@@ -873,7 +870,7 @@ cdef class Background:
 
     @flatarray()
     def Omega_ur(self, z):
-        r"""Density parameter of ultra relativistic neutrinos, unitless."""
+        r"""Density parameter of massless neutrinos, unitless."""
         return self.rho_ur(z) / self.rho_crit(z)
 
     @flatarray()
@@ -1310,7 +1307,7 @@ cdef class Primordial:
         Returns
         -------
         data : numpy.ndarray
-            Structured array containing thermodynamics data.
+            Structured array containing primordial data.
         """
         cdef char titles[_MAXTITLESTRINGLENGTH_]
         memset(titles, 0, _MAXTITLESTRINGLENGTH_)
