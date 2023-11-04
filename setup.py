@@ -151,7 +151,7 @@ def classy_extension_config(branch):
 
     # determine if swig needs to be called
     config['sources'] = [os.path.join(package_basename, branch, 'binding.pyx')]
-
+    os.environ.setdefault('CCFLAG', os.environ.get('CFLAGS', ''))
     os.environ.setdefault('CC', compiler)
     if compiler_is_clang(compiler):
         # see https://github.com/lesgourg/class_public/issues/405
