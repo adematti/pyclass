@@ -72,7 +72,7 @@ def val2str(val):
     """Turn ``val`` into string."""
     if isinstance(val, (list, tuple, np.ndarray)):
         return ','.join([str(i) for i in val])
-    return str(val)
+    return str(val).strip()
 
 
 def joinstr(s, *args):
@@ -186,22 +186,22 @@ cdef int index_symmetric_matrix(int i1, int i2, int N) nogil:
 
 cdef int _build_file_content(params, file_content * fc) except -1:
     r"""Dump parameter dictionary ``params`` to file structure ``fc``."""
-    fc.size = 0
+    parser_free(fc)
     fc.filename = <char*>malloc(sizeof(FileArg))
     strncpy(fc.filename, 'NOFILE', sizeof(FileArg))
     fc.size = len(params)
-    fc.name = <FileArg*> malloc(sizeof(FileArg)*len(params))
+    fc.name = <FileArg*> malloc(sizeof(FileArg) * len(params))
     assert(fc.name != NULL)
-    fc.value = <FileArg*> malloc(sizeof(FileArg)*len(params))
+    fc.value = <FileArg*> malloc(sizeof(FileArg) * len(params))
     assert(fc.value != NULL)
-    fc.read = <short*> malloc(sizeof(short)*len(params))
+    fc.read = <short*> malloc(sizeof(short) * len(params))
     assert(fc.read != NULL)
     # fill parameter file
     for ii, kk in enumerate(params.keys()):
-        dumcp = kk.encode()
-        strncpy(fc.name[ii], dumcp[:sizeof(FileArg)-1], sizeof(FileArg))
+        dumcp = val2str(kk).encode()
+        strncpy(fc.name[ii], dumcp[:sizeof(FileArg) - 1], sizeof(FileArg))
         dumcp = val2str(params[kk]).encode()
-        strncpy(fc.value[ii], dumcp[:sizeof(FileArg)-1], sizeof(FileArg))
+        strncpy(fc.value[ii], dumcp[:sizeof(FileArg) - 1], sizeof(FileArg))
         fc.read[ii] = _FALSE_
     return 0
 
@@ -385,6 +385,7 @@ cdef class ClassEngine:
         compute_background = 'background' in tasks and not self.ready.ba
         compute_thermodynamics = 'thermodynamics' in tasks and not self.ready.th
         compute_lensing = 'lensing' in tasks and not self.ready.le
+        # print(self.get_params())
 
         #if compute_lensing:
         #    if self.le.has_lensed_cls == _FALSE_:
@@ -415,7 +416,6 @@ cdef class ClassEngine:
         # The following list of computation is straightforward. If the '_init'
         # methods fail, call `struct_cleanup` and raise a ClassComputationError
         # with the error message from the faulty module of CLASS.
-        # print(self.get_params())
         # print(compute_background, compute_thermodynamics, compute_perturbations, compute_primordial, compute_fourier, compute_transfer, compute_harmonic, compute_lensing, compute_distortions)
         if compute_background:
             if background_init(&self.pr, &self.ba) == _FAILURE_:

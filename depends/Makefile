@@ -8,6 +8,7 @@ SRC=$(UNPACK)
 
 $(TARBALL):
 	curl -fsSL $(URL) > $(TARBALL)
+	#wget -O $(TARBALL) $(URL)
 
 $(SRC): $(TARBALL)
 	mkdir -p $(UNPACK)

@@ -247,6 +247,36 @@ def test_error():
     Background(cosmo).table()
 
 
+def test_rs_drag():
+    params = {'Omega_k': -0.0006291943, 'k_pivot': 0.05, 'n_s': 0.9649, 'alpha_s': 0.0, 'T_cmb': 2.7255, 'reionization_width': 0.5, 'A_L': 1.0,
+              'modes': 's', 'YHe': 'BBN', 'A_s': 2.083e-09, 'Omega_cdm': 0.25975577211637285, 'Omega_b': 0.049431554422906136,
+              'tau_reio': 0.05853273, 'h': 0.6766846, 'N_ur': 2.0328, 'm_ncdm': [0.05999991930682943], 'lensing': 'no', 'z_max_pk': 10.0,
+              'P_k_max_h/Mpc': 10.0, 'l_max_scalars': 2500, 'N_ncdm': 1, 'T_ncdm': [0.71611], 'recombination': 'HyRec'}
+    params = {'Omega_k': -0.0006291943, 'k_pivot': 0.05, 'n_s': 0.9649, 'alpha_s': 0.0, 'T_cmb': 2.7255, 'reionization_width': 0.5, 'A_L': 1.0,
+              'modes': 's', 'YHe': 'BBN', 'A_s': 2.083e-09, 'Omega_cdm': 0.25975577211637285, 'Omega_b': 0.049431554422906136, 'tau_reio': 0.05853273,
+              'h': 0.6766846, 'N_ur': 2.0328, 'm_ncdm': [0.05999991930682943], 'lensing': 'no', 'z_max_pk': 10.0, 'P_k_max_h/Mpc': 10.0,
+              'l_max_scalars': 2500, 'N_ncdm': 1, 'T_ncdm': [0.71611], 'recombination': 'HyRec'}
+    cosmo = ClassEngine(params)
+    fo = Fourier(cosmo)
+    print(fo.sigma8_m)
+    ba = Background(cosmo)
+    print(ba.efunc(1.))
+    th = Thermodynamics(cosmo)
+    print(th.rs_drag / ba.h)
+
+    from classy import Class
+
+    cosmo = Class()
+    params = {'Omega_k': -0.0006291943, 'k_pivot': 0.05, 'n_s': 0.9649, 'alpha_s': 0.0, 'T_cmb': 2.7255, 'reionization_width': 0.5, 'A_L': 1.0,
+              'modes': 's', 'YHe': 'BBN', 'A_s': 2.083e-09, 'Omega_cdm': 0.25975577211637285, 'Omega_b': 0.049431554422906136,
+              'tau_reio': 0.05853273, 'h': 0.6766846, 'N_ur': 2.0328, 'm_ncdm': 0.05999991930682943, 'lensing': 'no', 'z_max_pk': 10.0,
+              'P_k_max_h/Mpc': 10.0, 'l_max_scalars': 2500, 'N_ncdm': 1, 'T_ncdm': 0.71611, 'recombination': 'HyRec', 'output': 'dTk, vTk, tCl, pCl, lCl, mPk, nCl'}
+    params = {'hyrec_path': '/local/home/adematti/Bureau/DESI/NERSC/cosmodesi/pyclass/pyclass/base/external/HyRec2020/', 'Galli_file': '/local/home/adematti/Bureau/DESI/NERSC/cosmodesi/pyclass/pyclass/base/external/heating/Galli_et_al_2013.dat', 'sd_external_path': '/local/home/adematti/Bureau/DESI/NERSC/cosmodesi/pyclass/pyclass/base/external/distortions/', 'sBBN file': '/local/home/adematti/Bureau/DESI/NERSC/cosmodesi/pyclass/pyclass/base/external/bbn/sBBN.dat', 'Omega_k': '-0.0006291943', 'k_pivot': '0.05', 'n_s': '0.9649', 'alpha_s': '0.0', 'T_cmb': '2.7255', 'reionization_width': '0.5', 'A_L': '1.0', 'modes': 's', 'YHe': 'BBN', 'A_s': '2.083e-09', 'Omega_cdm': '0.25975577211637285', 'Omega_b': '0.049431554422906136', 'tau_reio': '0.05853273', 'h': '0.6766846', 'N_ur': '2.0328', 'm_ncdm': '0.05999991930682943', 'lensing': 'no', 'z_max_pk': '10.0', 'P_k_max_h/Mpc': '10.0', 'l_max_scalars': '2500', 'N_ncdm': '1', 'T_ncdm': '0.71611', 'recombination': 'HyRec', 'output': 'dTk,vTk,tCl,pCl,lCl,mPk,nCl'}
+    cosmo.set(**params)
+    cosmo.compute(level=['thermodynamics'])
+    print(cosmo.rs_drag())
+
+
 if __name__ == '__main__':
 
     test_classy()

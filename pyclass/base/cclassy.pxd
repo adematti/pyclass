@@ -130,7 +130,6 @@ cdef extern from "class.h":
         int th_size
         int index_th_xe
         int index_th_Tb
-        short inter_normal
         double z_reio
         double tau_reio
         double z_rec
