@@ -80,13 +80,12 @@ class custom_build_ext(build_ext):
 class custom_develop(develop):
 
     def run(self):
-        #self.run_command('build_ext')
         build_ext = self.get_finalized_command('build_ext')
+        super(custom_develop, self).run()
         for branch in find_branches():
             for name in ['external', 'data']:
                 shutil.rmtree(os.path.join(package_basedir, package_basename, branch, name), ignore_errors=True)
                 shutil.copytree(os.path.join(build_ext.build_temp, branch, name), os.path.join(package_basedir, package_basename, branch, name))
-        super(custom_develop, self).run()
 
 
 class custom_clean(clean):
@@ -96,7 +95,7 @@ class custom_clean(clean):
         # run the built-in clean
         super(custom_clean, self).run()
 
-        # remove the CLASS tmp directories
+        # remove CLASS tmp directories
         for dirpath in glob.glob(os.path.join('depends', 'tmp*')):
             if os.path.isdir(dirpath):
                 shutil.rmtree(dirpath)
@@ -111,6 +110,8 @@ class custom_clean(clean):
                 except OSError: pass
         # remove build directory
         shutil.rmtree('build', ignore_errors=True)
+        shutil.rmtree('dist', ignore_errors=True)
+        shutil.rmtree(package_basename + '.egg-info', ignore_errors=True)
 
 
 def find_compiler():

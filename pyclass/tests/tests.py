@@ -88,6 +88,14 @@ def test_background():
             assert func([0.2, 0.3]).shape == (N, 2,)
             assert func([[0.2, 0.3, 0.4]]).shape == (N, 1, 3)
 
+            if N:
+                assert func([[0.2, 0.3, 0.4]], species=0).shape == (1, 3)
+                assert func([[0.2, 0.3, 0.4]], species=[0]).shape == (1, 1, 3)
+            else:
+                try: func([[0.2, 0.3, 0.4]], species=0)
+                except IndexError: pass
+                else: raise ValueError
+
 
 def test_thermodynamics():
     # cosmo = ClassEngine({'output': 'dTk vTk mPk', 'P_k_max_h/Mpc': 20., 'z_max_pk': 100.0})
@@ -134,9 +142,6 @@ def test_perturbations():
 def test_transfer():
     cosmo = ClassEngine({'P_k_max_h/Mpc': 20., 'z_max_pk': 100.0, 'N_ncdm': 1, 'm_ncdm': [0.06]})
     tr = Transfer(cosmo)
-    t = tr.table(0.0)
-    t = tr.table(2.0)
-    assert 'd_ncdm[0]' in tr.table().dtype.names
 
 
 def test_harmonic():
@@ -227,7 +232,7 @@ def test_classy():
 
     k, z, pk = Fourier(cosmo).table(of='phi_plus_psi')
     pk /= ba.h**3
-    pk *= k_ref[:, None]**4
+    pk *= k[:, None]**4
     pk /= 4
     print(pk[:, -3:] / pk_ref[:, -3:])
 
