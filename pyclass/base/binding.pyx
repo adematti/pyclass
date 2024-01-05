@@ -1967,8 +1967,8 @@ cdef class Fourier:
         if non_linear:
             if self.has_non_linear:
                 return pk_nonlinear
-            raise ClassRuntimeError('You ask CLASS to return an array of non-linear P(k,z) values, '
-                                    'but the input parameters sent to CLASS did not require any non-linear P(k,z) calculations; '
+            raise ClassRuntimeError('You ask CLASS to return an array of non-linear P(k, z) values, '
+                                    'but the input parameters sent to CLASS did not require any non-linear P(k, z) calculations; '
                                     'add e.g. "halofit" or "HMcode" in "non_linear"')
         return pk_linear
 
@@ -2038,11 +2038,26 @@ cdef class Fourier:
         pk : numpy.ndarray
             Power spectrum array of shape (len(k), len(z)).
         """
-        k = np.array(<double[:self.fo.k_size]> self.fo.k, dtype=np.float64)
-        cdef double[:] z = np.empty(self.fo.ln_tau_size, dtype=np.float64)
-        cdef double[:,:] pk_at_k_z = np.empty((self.fo.k_size, self.fo.ln_tau_size), dtype=np.float64)
         cdef pk_outputs is_non_linear = self._use_pk_non_linear(non_linear)
-        cdef int index_k, index_tau, index_tau_sources
+        cdef int index_ln_tau_min
+        if is_non_linear == pk_nonlinear:
+            index_ln_tau_min = self.fo.index_tau_min_nl
+        else:
+            index_ln_tau_min = 0
+        cdef int index_ln_tau_max = self.fo.ln_tau_size
+        cdef int ln_tau_size = index_ln_tau_max - index_ln_tau_min
+
+        if self.fo.ln_tau_size <= 1:
+                raise ClassRuntimeError('You ask CLASS to return an array of P(k, z) values, but the input parameters sent to CLASS did not require '
+                                        'any P(k, z) calculations for z>0; pass either a list of z in "z_pk" or one non-zero value in "z_max_pk"')
+        if ln_tau_size < 1:  # non_linear
+            raise ClassRuntimeError('"halofit_nonlinear_min_k_max" or "hmcode_nonlinear_min_k_max" is too small to compute the scale k_NL for non-linear corrections at any of the requested z_pk.')
+
+        k = np.array(<double[:self.fo.k_size]> self.fo.k, dtype=np.float64)
+        cdef double[:] z = np.empty(ln_tau_size, dtype=np.float64)
+        cdef double[:,:] pk_at_k_z = np.empty((self.fo.k_size, ln_tau_size), dtype=np.float64)
+
+        cdef int index_k, itau, index_tau, index_tau_sources
         cdef double z_max_non_linear, z_max_requested
 
         cdef int index_ic1, index_ic2, index_ic1_ic1, index_ic1_ic2, index_ic2_ic2, index_tp1, index_tp2, ntheta, last_index #junk
@@ -2055,25 +2070,12 @@ cdef class Fourier:
         cdef int pt_tau_size = self.pt.tau_size
         cdef int pt_ln_tau_size = self.pt.ln_tau_size
 
-        if self.fo.ln_tau_size == 1:
-            raise ClassRuntimeError('You ask CLASS to return an array of P(k, z) values, but the input parameters sent to CLASS did not require '
-                                    'any P(k, z) calculations for z>0; pass either a list of z in "z_pk" or one non-zero value in "z_max_pk"')
-
-        for index_tau in range(self.fo.ln_tau_size):
+        for itau in range(ln_tau_size):
+            index_tau = itau + index_ln_tau_min
             if index_tau == self.fo.ln_tau_size - 1:
-                z[index_tau] = 0.
-            elif background_z_of_tau(self.ba, exp(self.fo.ln_tau[index_tau]), &(z[index_tau])) == _FAILURE_:
+                z[itau] = 0.
+            elif background_z_of_tau(self.ba, exp(self.fo.ln_tau[index_tau]), &(z[itau])) == _FAILURE_:
                 raise ClassRuntimeError(self.ba.error_message.decode())
-
-        if is_non_linear == pk_nonlinear:
-            if background_z_of_tau(self.ba, self.fo.tau[self.fo.index_tau_min_nl], &z_max_non_linear) == _FAILURE_:
-                raise ClassRuntimeError(self.ba.error_message.decode())
-            z_max_requested = z[0]
-            if ((self.fo.tau_size - self.fo.ln_tau_size) < self.fo.index_tau_min_nl):
-                raise ClassRuntimeError('table() is trying to return P(k, z) up to z_max={:.3f} (to encompass your requested maximum value of z); '
-                                        'but the input parameters sent to CLASS were such that the non-linear P(k,z) could only be consistently computed up to z={:.3f}; '
-                                        'increase the input parameter "P_k_max_h/Mpc" or "P_k_max_1/Mpc", or increase the precision parameters "halofit_min_k_max" and/or '
-                                        '"hmcode_min_k_max", or decrease your requested z_max'.format(z_max_requested, z_max_non_linear))
 
         if isinstance(of, str): of = (of,)
         of = list(of)
@@ -2083,14 +2085,15 @@ cdef class Fourier:
         if of[0] == of[1] and of[0] in ['delta_m', 'delta_cb']:
             index_tp1 = self._index_pk_of(of[0])
             with nogil:
-                for index_tau in range(self.fo.ln_tau_size):
+                for itau in range(ln_tau_size):
+                    index_tau = itau + index_ln_tau_min
                     for index_k in range(self.fo.k_size):
                         if is_non_linear == pk_nonlinear:
-                            pk_at_k_z[index_k, index_tau] = exp(self.fo.ln_pk_nl[index_tp1][index_tau * self.fo.k_size + index_k])
+                            pk_at_k_z[index_k, itau] = exp(self.fo.ln_pk_nl[index_tp1][index_tau * self.fo.k_size + index_k])
                         else:
-                            pk_at_k_z[index_k, index_tau] = exp(self.fo.ln_pk_l[index_tp1][index_tau * self.fo.k_size + index_k])
+                            pk_at_k_z[index_k, itau] = exp(self.fo.ln_pk_l[index_tp1][index_tau * self.fo.k_size + index_k])
 
-        elif non_linear:
+        elif is_non_linear == pk_nonlinear:
             raise ClassComputationError('Non-linear power spectrum is computed for auto delta_m and delta_cb only')
 
         else:
@@ -2107,10 +2110,11 @@ cdef class Fourier:
             ntheta = sum(of_.startswith('theta_') for of_ in of)
 
             with nogil:
-                for index_tau in range(self.fo.ln_tau_size):
+                for itau in range(ln_tau_size):
+                    index_tau = itau + index_ln_tau_min
                     index_tau_sources = pt_tau_size - pt_ln_tau_size + index_tau
                     if ntheta > 0:
-                        if background_at_z(self.ba, z[index_tau], long_info, inter_normal, &last_index, &pvecback[0]) == _FAILURE_:
+                        if background_at_z(self.ba, z[itau], long_info, inter_normal, &last_index, &pvecback[0]) == _FAILURE_:
                             raise ClassRuntimeError(self.ba.error_message.decode())
                         factor_z = 1. / (-pvecback[self.ba.index_bg_H] * pvecback[self.ba.index_bg_a])**ntheta
                     else:
@@ -2122,7 +2126,7 @@ cdef class Fourier:
                         sumpk = 0.
                         for index_ic1 in range(self.fo.ic_size):
                             index_ic1_ic1 = index_symmetric_matrix(index_ic1, index_ic1, self.fo.ic_size)
-                            #source_tp1_ic1 = sources[index_ic1 * tp_size + index_tp1][index_tau * k_size + index_k]
+                            #source_tp1_ic1 = sources[index_ic1 * tp_size + index_tp1][index_tau_sources * k_size + index_k]
 
                             if fourier_get_source(self.ba, self.pt, self.fo, index_k, index_ic1, index_tp1, index_tau_sources, sources, &source_tp1_ic1) == _FAILURE_:
                                 raise ClassRuntimeError(self.fo.error_message.decode())
@@ -2146,7 +2150,7 @@ cdef class Fourier:
                                             source_tp2_ic2 = source_tp1_ic2
                                     primordial_pk_ic1_ic2 = primordial_pk[index_ic1_ic2] * sqrt(primordial_pk[index_ic1_ic1] * primordial_pk[index_ic2_ic2])
                                     sumpk += factor_k * (source_tp1_ic1 * source_tp2_ic2 + source_tp1_ic2 * source_tp2_ic1) * primordial_pk_ic1_ic2
-                        pk_at_k_z[index_k, index_tau] = factor_z * sumpk
+                        pk_at_k_z[index_k, itau] = factor_z * sumpk
             free(primordial_pk)
 
         return np.asarray(k) / self.ba.h, np.asarray(z), np.asarray(pk_at_k_z) * self.ba.h**3
