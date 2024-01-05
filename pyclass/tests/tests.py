@@ -64,7 +64,7 @@ def test_background():
         cosmo = ClassEngine(params)
         ba = Background(cosmo)
 
-        for name in ['rho_cdm', 'rho_dcdm', 'rho_ncdm_tot', 'p_ncdm_tot', 'Omega_m', 'Omega_pncdm_tot', 'time', 'hubble_function', 'comoving_radial_distance', 'comoving_angular_distance', 'growth_factor', 'growth_rate']:
+        for name in ['rho_cdm', 'rho_dcdm', 'rho_ncdm_tot', 'p_ncdm_tot', 'Omega_m', 'Omega_pncdm_tot', 'time', 'conformal_time', 'hubble_function', 'comoving_radial_distance', 'comoving_angular_distance', 'growth_factor', 'growth_rate']:
             func = getattr(ba, name)
             assert func(0.1).shape == ()
             assert func([]).shape == (0,)
@@ -257,7 +257,7 @@ def test_rs_drag():
               'modes': 's', 'YHe': 'BBN', 'A_s': 2.083e-09, 'Omega_cdm': 0.25975577211637285, 'Omega_b': 0.049431554422906136,
               'tau_reio': 0.05853273, 'h': 0.6766846, 'N_ur': 2.0328, 'm_ncdm': [0.05999991930682943], 'lensing': 'no', 'z_max_pk': 10.0,
               'P_k_max_h/Mpc': 10.0, 'l_max_scalars': 2500, 'N_ncdm': 1, 'T_ncdm': [0.71611], 'recombination': 'HyRec'}
-    params = {'Omega_k': -0.0006291943, 'k_pivot': 0.05, 'n_s': 0.9649, 'alpha_s': 0.0, 'T_cmb': 2.7255, 'reionization_width': 0.5, 'A_L': 1.0,
+    params = {'Omega_k': -0.0006291943, 'k_pivot': 0.05, 'n_s': 0.9649, 'alpha_s': 0.0, 'T_cmb': 2.7255, 'reionizaagetion_width': 0.5, 'A_L': 1.0,
               'modes': 's', 'YHe': 'BBN', 'A_s': 2.083e-09, 'Omega_cdm': 0.25975577211637285, 'Omega_b': 0.049431554422906136, 'tau_reio': 0.05853273,
               'h': 0.6766846, 'N_ur': 2.0328, 'm_ncdm': [0.05999991930682943], 'lensing': 'no', 'z_max_pk': 10.0, 'P_k_max_h/Mpc': 10.0,
               'l_max_scalars': 2500, 'N_ncdm': 1, 'T_ncdm': [0.71611], 'recombination': 'HyRec'}

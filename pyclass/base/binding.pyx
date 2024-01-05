@@ -962,8 +962,8 @@ cdef class Background:
 
     @flatarray()
     def conformal_time(self, z):
-        r"""Conformal time, in :math:`\mathrm{Mpc}/h`."""
-        return self._get_z(z, self.ba.index_bg_conf_distance) * self.ba.h
+        r"""Conformal time, in :math:`\mathrm{Gy}`."""
+        return (self.ba.conformal_age - self._get_z(z, self.ba.index_bg_conf_distance)) / _Gyr_over_Mpc_
 
     @flatarray()
     def hubble_function(self, z):
