@@ -178,10 +178,12 @@ def _compile_params(params):
     for key in list(params.keys()):
         if params[key] is None: params.pop(key)
     #params.setdefault('output', ['dTk', 'vTk', 'tCl', 'pCl', 'lCl', 'mPk', 'nCl'])
-    params['output'] = ['dTk', 'vTk', 'tCl', 'pCl', 'lCl', 'mPk', 'nCl']
     #params['output'] = ['dTk', 'vTk', 'mPk', 'nCl']
-    if 'nCl' in params['output']:
-        params.setdefault('number_count_contributions', ['density', 'rsd', 'lensing'])  # calculation in Perturbations very expansive when asking for Harmonic
+    params['output'] = ['dTk', 'vTk', 'tCl', 'pCl', 'lCl', 'mPk', 'nCl']
+    params.setdefault('number_count_contributions', ['density', 'rsd', 'lensing'])  # calculation in Perturbations very expansive when asking for Harmonic
+    number_count_contributions = params.get('number_count_contributions', [])
+    if not number_count_contributions:
+        params['output'].remove('nCl')
     return params
 
 
