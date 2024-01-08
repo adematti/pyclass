@@ -184,6 +184,7 @@ def _compile_params(params):
     number_count_contributions = params.get('number_count_contributions', [])
     if not number_count_contributions:
         params['output'].remove('nCl')
+        params.pop('number_count_contributions', None)
     return params
 
 
