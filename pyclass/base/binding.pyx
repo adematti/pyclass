@@ -177,13 +177,13 @@ def _compile_params(params):
                 if name not in params: params[name] = 1
     for key in list(params.keys()):
         if params[key] is None: params.pop(key)
-    #params.setdefault('output', ['dTk', 'vTk', 'tCl', 'pCl', 'lCl', 'mPk', 'nCl'])
-    #params['output'] = ['dTk', 'vTk', 'mPk', 'nCl']
-    params['output'] = ['dTk', 'vTk', 'tCl', 'pCl', 'lCl', 'mPk', 'nCl']
+    params.setdefault('output', ['dTk', 'vTk', 'tCl', 'pCl', 'lCl', 'mPk', 'nCl'])
     params.setdefault('number_count_contributions', ['density', 'rsd', 'lensing'])  # calculation in Perturbations very expansive when asking for Harmonic
     number_count_contributions = params.get('number_count_contributions', [])
     if not number_count_contributions:
-        params['output'].remove('nCl')
+        try: params['output'].remove('nCl')
+        except ValueError: pass
+    if 'nCl' not in params['output']:
         params.pop('number_count_contributions', None)
     return params
 
@@ -436,9 +436,9 @@ cdef class ClassEngine:
         self.pt.has_pk_matter = short(compute_fourier or self.ready.fo)
         """
         # to get theta_m, theta_cb, phi, psi, phi_plus_psi...
-        # self.pt.has_cl_number_count = self.pt.has_nc_rsd = self.pt.has_nc_lens = _TRUE_
+        # self.pt.has_cl_number_count = self.pt.has_nc_density = self.pt.has_nc_rsd = self.pt.has_nc_lens = _TRUE_
         # print(self.pt.has_cl_cmb_temperature, self.pt.has_cl_cmb_polarization, self.pt.has_cls, self.pt.has_cl_cmb_lensing_potential, self.pt.has_density_transfers, self.pt.has_velocity_transfers, self.pt.has_pk_matter)
-
+        # print(self.pt.has_cl_number_count, self.pt.has_nc_rsd, self.pt.has_nc_lens)
         # The following list of computation is straightforward. If the '_init'
         # methods fail, call `struct_cleanup` and raise a ClassComputationError
         # with the error message from the faulty module of CLASS.
