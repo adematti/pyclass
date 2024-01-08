@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 
 from pyclass import *
@@ -200,6 +202,46 @@ def test_classy():
 
 
 def test_classy():
+
+    from classy import Class
+
+    t0 = time.time()
+    cosmo = Class()
+    #cosmo.set({'output': 'tCl, pCl, lCl'})
+    cosmo.set({'output': 'dTk, vTk, tCl, pCl, lCl, mPk, nCl', 'number_count_contributions': 'density, rsd, lensing'})
+    cosmo.compute(level=['harmonic'])
+    print('classy', time.time() - t0)
+
+    t0 = time.time()
+    cosmo = ClassEngine()
+    Harmonic(cosmo)
+    print('pyclass', time.time() - t0)
+
+    from cosmoprimo import Cosmology
+    t0 = time.time()
+    cosmo = Cosmology(engine='class')
+    cosmo.get_harmonic()
+    cosmo.get_fourier().pk_interpolator(of=('delta_cb', 'delta_cb'))
+    print('cosmoprimo', time.time() - t0)
+
+    t0 = time.time()
+    cosmo = Class()
+    #cosmo.set({'output': 'tCl, pCl, lCl'})
+    cosmo.set({'output': 'dTk, vTk, tCl, pCl, lCl, mPk, nCl', 'number_count_contributions': 'density, rsd, gr'})
+    cosmo.compute(level=['fourier'])
+    print('classy', time.time() - t0)
+
+    t0 = time.time()
+    cosmo = ClassEngine()
+    Fourier(cosmo)
+    print('pyclass', time.time() - t0)
+
+    from cosmoprimo import Cosmology
+    t0 = time.time()
+    cosmo = Cosmology(engine='class')
+    cosmo.get_fourier()
+    print('cosmoprimo', time.time() - t0)
+
     #import classy
     #print(classy.__file__)
     """
@@ -208,7 +250,6 @@ def test_classy():
         #Perturbations(cosmo)
         cosmo.compute('perturbations')
     """
-    from classy import Class
 
     cosmo = Class()
     cosmo.set({'z_pk': '1, 2, 3', 'output': 'dTk, vTk, tCl, pCl, lCl, mPk, nCl'})

@@ -180,7 +180,8 @@ def _compile_params(params):
     #params.setdefault('output', ['dTk', 'vTk', 'tCl', 'pCl', 'lCl', 'mPk', 'nCl'])
     params['output'] = ['dTk', 'vTk', 'tCl', 'pCl', 'lCl', 'mPk', 'nCl']
     #params['output'] = ['dTk', 'vTk', 'mPk', 'nCl']
-    params['number_count_contributions'] = ['density', 'rsd', 'gr']
+    if 'nCl' in params['output']:
+        params.setdefault('number_count_contributions', ['density', 'rsd', 'lensing'])  # calculation in Perturbations very expansive when asking for Harmonic
     return params
 
 
@@ -246,8 +247,8 @@ def _build_task_dependency(tasks):
     tasks : list
         Complete task list.
     """
-    if not isinstance(tasks,list):
-        tasks = [tasks]
+    if not is_sequence(tasks): tasks = [tasks]
+    tasks = list(tasks)
     if 'distortions' in tasks:
         tasks.append('lensing')
     if 'lensing' in tasks:
@@ -358,6 +359,8 @@ cdef class ClassEngine:
         """
         cdef file_content * fc = &self.fc
         cdef ErrorMsg errmsg
+        if not is_sequence(tasks): tasks = [tasks]
+        input_tasks = list(tasks)
         tasks = _build_task_dependency(tasks)
 
         # --------------------------------------------------------------------
@@ -430,7 +433,7 @@ cdef class ClassEngine:
         self.pt.has_pk_matter = short(compute_fourier or self.ready.fo)
         """
         # to get theta_m, theta_cb, phi, psi, phi_plus_psi...
-        # self.pt.has_cl_number_count = self.pt.has_nc_rsd = self.pt.has_nc_gr = _TRUE_
+        # self.pt.has_cl_number_count = self.pt.has_nc_rsd = self.pt.has_nc_lens = _TRUE_
         # print(self.pt.has_cl_cmb_temperature, self.pt.has_cl_cmb_polarization, self.pt.has_cls, self.pt.has_cl_cmb_lensing_potential, self.pt.has_density_transfers, self.pt.has_velocity_transfers, self.pt.has_pk_matter)
 
         # The following list of computation is straightforward. If the '_init'

@@ -167,7 +167,9 @@ cdef extern from "class.h":
         short has_pk_matter
         short has_pk_cb
         short has_cl_number_count
+        short has_nc_density
         short has_nc_rsd
+        short has_nc_lens
         short has_nc_gr
 
         # add source functions for comparison
