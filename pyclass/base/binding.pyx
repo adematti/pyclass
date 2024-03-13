@@ -71,7 +71,7 @@ class ClassRuntimeError(ValueError):
 
 def val2str(val):
     """Turn ``val`` into string."""
-    if isinstance(val, (list, tuple, np.ndarray)):
+    if (not isinstance(val, str)) and np.iterable(val):
         return ','.join([str(i) for i in val])
     return str(val).strip()
 
