@@ -206,14 +206,12 @@ cdef extern from "class.h":
         #end
 
 
-
     cdef struct thermodynamics:
         ErrorMsg error_message
 
         int th_size
         int index_th_xe
         int index_th_Tb
-        short inter_normal
         double z_reio
         double tau_reio
         double z_rec
@@ -250,21 +248,111 @@ cdef extern from "class.h":
         short has_cls
         short has_pk_matter
         short has_pk_cb
+        short has_cl_number_count
+        short has_nc_density
+        short has_nc_rsd
+        short has_nc_lens
+        short has_nc_gr
 
-        int index_tp_delta_m
-        int index_tp_delta_cb
-        int index_tp_theta_m
-        int index_tp_theta_cb
-        int index_tp_phi
-        int index_tp_psi
-        int index_tp_phi_plus_psi
-        short has_source_theta_m
-        short has_source_theta_cb
+        # add source functions for comparison
+        short has_source_t
+        short has_source_p
         short has_source_delta_m
         short has_source_delta_cb
-        short has_cl_number_count
-        short has_nc_rsd
-        short has_nc_gr
+        short has_source_delta_tot
+        short has_source_delta_g
+        short has_source_delta_b
+        short has_source_delta_cdm
+        short has_source_delta_idm
+        short has_source_delta_idr
+        short has_source_delta_dcdm
+        short has_source_delta_fld
+        short has_source_delta_scf
+        short has_source_delta_dr
+        short has_source_delta_ur
+        short has_source_delta_ncdm
+        short has_source_theta_m
+        short has_source_theta_cb
+        short has_source_theta_tot
+        short has_source_theta_g
+        short has_source_theta_b
+        short has_source_theta_cdm
+        short has_source_theta_idm
+        short has_source_theta_idr
+        short has_source_theta_dcdm
+        short has_source_theta_fld
+        short has_source_theta_scf
+        short has_source_theta_dr
+        short has_source_theta_ur
+        short has_source_theta_ncdm
+        short has_source_phi
+        short has_source_phi_prime
+        short has_source_phi_plus_psi
+        short has_source_psi
+        short has_source_h
+        short has_source_h_prime
+        short has_source_eta
+        short has_source_eta_prime
+        short has_source_H_T_Nb_prime
+        short has_source_k2gamma_Nb
+
+        int index_tp_t0
+        int index_tp_t1
+        int index_tp_t2
+        int index_tp_p
+        int index_tp_delta_m
+        int index_tp_delta_cb
+        int index_tp_delta_tot
+        int index_tp_delta_g
+        int index_tp_delta_b
+        int index_tp_delta_cdm
+        int index_tp_delta_idm
+        int index_tp_delta_dcdm
+        int index_tp_delta_fld
+        int index_tp_delta_scf
+        int index_tp_delta_dr
+        int index_tp_delta_ur
+        int index_tp_delta_idr
+        int index_tp_delta_ncdm1
+        int index_tp_theta_m
+        int index_tp_theta_cb
+        int index_tp_theta_tot
+        int index_tp_theta_g
+        int index_tp_theta_b
+        int index_tp_theta_cdm
+        int index_tp_theta_dcdm
+        int index_tp_theta_fld
+        int index_tp_theta_scf
+        int index_tp_theta_ur
+        int index_tp_theta_idr
+        int index_tp_theta_idm
+        int index_tp_theta_dr
+        int index_tp_theta_ncdm1
+        int index_tp_phi
+        int index_tp_phi_prime
+        int index_tp_phi_plus_psi
+        int index_tp_psi
+        int index_tp_h
+        int index_tp_h_prime
+        int index_tp_eta
+        int index_tp_eta_prime
+        int index_tp_H_T_Nb_prime
+        int index_tp_k2gamma_Nb
+
+
+        double *** sources
+        double * tau_sampling
+        int tau_size
+        int k_size_pk
+        int * k_size
+        double ** k
+        int * ic_size
+        int index_ic_ad
+        int md_size
+        int * tp_size
+        double * ln_tau
+        int ln_tau_size
+
         int index_md_scalars
         int index_md_vectors
         int index_md_tensors
@@ -308,13 +396,8 @@ cdef extern from "class.h":
         int size_vector_perturbation_data[_MAX_NUMBER_OF_K_FILES_]
         int size_tensor_perturbation_data[_MAX_NUMBER_OF_K_FILES_]
 
-        double * alpha_idm_dr
-        double * beta_idr
-
-        int * k_size
-        int * ic_size
-
-        double *** sources
+        #double * alpha_idm_dr
+        #double * beta_idr
 
 
     cdef struct transfer:
