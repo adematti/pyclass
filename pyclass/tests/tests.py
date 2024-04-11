@@ -327,7 +327,7 @@ def test_axiclass(show=False):
     #NEW: addition for EDE (Rafaela)
     from pyclass.axiclass import ClassEngine, Background, Fourier
     for fede in [0.001, 0.05, 0.132, 0.15]:
-        params = {'omega_b': 0.02251, 'omega_cdm': 0.1320, 'H0': 72.81, 'tau_reio': 0.068, 'scf_potential': 'axion', 'n_axion': 2.6, 'log10_axion_ac': -3.531, 'fraction_axion_ac': fede, 'scf_parameters': [2.72,0.0], 'scf_evolve_as_fluid': False,
+        params = {'omega_b': 0.02251, 'omega_cdm': 0.1320, 'H0': 72.81, 'tau_reio': 0.068, 'scf_potential': 'axion', 'n_axion': 2.6, 'log10_axion_ac': -3.531, 'fraction_axion_ac': fede, 'scf_parameters': [2.72, 0.0], 'scf_evolve_as_fluid': False,
                             'scf_evolve_like_axionCAMB': False, 'attractor_ic_scf': False, 'compute_phase_shift': False, 'include_scf_in_delta_m': True, 'include_scf_in_delta_cb': True}
         cosmo = ClassEngine(params)
         ba = Background(cosmo)
