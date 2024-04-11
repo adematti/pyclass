@@ -123,10 +123,9 @@ cdef extern from "class.h":
         double K
         int bt_size
 
-        #NEW: to make EDE work (Rafaela) (maybe also crosscheck with input.c)
+        #NEW: addition for EDE (Rafaela) (maybe also crosscheck with input.c)
         #start
         double f_ede
-        double f_ede_peak
         double m_scf
         double f_axion
         double Omega_axion_ac
@@ -143,7 +142,7 @@ cdef extern from "class.h":
         double Omega0_axion
         double Omega0_scf
         double Omega_EDE
-        
+
         double n_axion_security
         double security_small_Omega_scf
         short scf_evolve_as_fluid
@@ -153,18 +152,18 @@ cdef extern from "class.h":
         double n_axion
         short scf_evolve_like_axionCAMB
         short scf_has_perturbations
-        short cs2_is_wn    
-        
+        short cs2_is_wn
+
         # wanted to use these three parameters
         # but seems like there are nowhere to be found in the class code (besides declaration)
-        
+
         # double precision_newton_method_x
         # double precision_newton_method_F
         # double adptative_stepsize
-        
+
         # additional parameters but doesn't seem necessary
         # to include them atm
-        
+
 #         double phi_ini_scf
 #         double phi_prime_ini_scf
 #         enum scf_pot scf_potential
@@ -181,12 +180,12 @@ cdef extern from "class.h":
 #         double w_scf
 #         double cs2_scf
 
-#         short scf_kg_eq 
+#         short scf_kg_eq
 #         short kg_fld_switch
 #         short scf_fluid_eq
 #         short loop_over_background_for_closure_relation
 #         short include_scf_in_growth_factor
-        
+
 #         double nu_fld
 #         double n_pheno_axion
 #         double omega_axion
@@ -364,12 +363,12 @@ cdef extern from "class.h":
         int l_scalar_max
         int l_lss_max
 
-        #NEW: to make EDE work (Rafaela)
+        #NEW: addition for EDE (Rafaela)
         #start
 
         double phase_shift
         double amplitude
-        
+
         short use_big_theta_scf
         short use_big_theta_fld
         short compute_phase_shift

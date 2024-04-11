@@ -323,9 +323,31 @@ def test_rs_drag():
     print(cosmo.rs_drag())
 
 
+def test_axiclass(show=False):
+    #NEW: addition for EDE (Rafaela)
+    from pyclass.axiclass import ClassEngine, Background, Fourier
+    for fede in [0.001, 0.05, 0.132, 0.15]:
+        params = {'omega_b': 0.02251, 'omega_cdm': 0.1320, 'H0': 72.81, 'tau_reio': 0.068, 'scf_potential': 'axion', 'n_axion': 2.6, 'log10_axion_ac': -3.531, 'fraction_axion_ac': fede, 'scf_parameters': [2.72,0.0], 'scf_evolve_as_fluid': False,
+                            'scf_evolve_like_axionCAMB': False, 'attractor_ic_scf': False, 'compute_phase_shift': False, 'include_scf_in_delta_m': True, 'include_scf_in_delta_cb': True}
+        cosmo = ClassEngine(params)
+        ba = Background(cosmo)
+        fo = Fourier(cosmo)
+        k = np.logspace(-4, np.log10(3), 1000)
+        h = ba.h
+        pk = fo.pk_kz(k * h, 0) * h**3
+        if show:
+            from matplotlib import pyplot as plt
+            plt.loglog(k, pk, label=r'$f_\mathrm{{EDE}} = {:.4f}$'.format(fede))
+    if show:
+        plt.legend()
+        plt.xlabel(r'$k$ $[h/\mathrm{Mpc}]$')
+        plt.ylabel(r'$P(k)$ $[(\mathrm{Mpc}/h)^3]$')
+        plt.show()
+
+
 if __name__ == '__main__':
 
-    test_classy()
+    #test_classy()
     test_params()
     test_task_dependency()
     test_background()
@@ -336,3 +358,4 @@ if __name__ == '__main__':
     test_harmonic()
     test_fourier()
     test_sigma8()
+    test_axiclass(show=True)

@@ -38,8 +38,9 @@ def build_class(build_dir, branch='base'):
     """Function to dowwnload CLASS from github and build the library."""
     # latest class version and download link
     url = find_url(branch)
-    args = (package_basedir, package_basedir, url, os.path.abspath(build_dir))
-    command = 'sh {}/depends/install_class.sh {} {} {}'.format(*args)
+    patch = os.path.join(os.path.join(package_basedir, package_basename, branch, 'patch'))
+    args = (package_basedir, package_basedir, url, patch, os.path.abspath(build_dir))
+    command = 'sh {}/depends/install_class.sh {} {} {} {}'.format(*args)
 
     if os.system(command) != 0:
         raise ValueError('could not build CLASS {}'.format(build_dir))

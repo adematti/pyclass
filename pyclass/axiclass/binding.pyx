@@ -582,7 +582,7 @@ cdef class Background:
             return self.ba.K / self.h**2
 
 
-    #NEW: addition for axiclass (Rafaela)
+    #NEW: addition for EDE (Rafaela)
     #starts here
     property fEDE:
         r"""fractional contribution of EDE"""
@@ -593,32 +593,32 @@ cdef class Background:
         r"""TODO"""
         def __get__(self):
             return self.ba.f_ede_peak
-            
+
     property omega_axion:
         r"""density parameter for axion-like early dark energy component"""
         def __get__(self):
             return self.ba.omega_axion
-            
+
     property zc:
         r"""critical redshift for early dark energy"""
         def __get__(self):
             return 10**self.ba.log10_z_c
-            
+
     property log10_z_c:
         r"""critical redshift for early dark energy (in log space)"""
         def __get__(self):
             return self.ba.log10_z_c
-            
+
     property thetai_scf:
         r"""initial displacement for early dark energy scalar field"""
         def __get__(self):
             return self.ba.scf_parameters[0]
-            
+
     property log10_f_axion:
         r"""Early dark energy decay constant"""
         def __get__(self):
             return self.ba.log10_f_axion
-            
+
     property log10_m_axion:
         r"""Early dark energy effective mass"""
         def __get__(self):
@@ -627,8 +627,8 @@ cdef class Background:
     property n_axion_security:
         def __get__(self):
             return self.ba.n_axion_security
-        
-    
+
+
     #end
 
     property Omega0_dcdm:
@@ -1439,7 +1439,7 @@ cdef class Perturbations:
         def __get__(self):
             return self.pt.z_max_pk
 
-    #NEW: addition to incorporate EDE (Rafaela)
+    #NEW: addition for EDE (Rafaela)
     #start
     property phase_shift:
         r""" TODO """

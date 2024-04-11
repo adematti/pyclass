@@ -1,11 +1,11 @@
 DEST?=_inst
 URL?=https://github.com/adematti/class_public/archive/refs/tags/v3.2.1b.tar.gz
 #URL?=
+PATCH?=
 
 TARBALL=tmp-class.tar.gz
 UNPACK=tmp-class
 SRC=$(UNPACK)
-HOME=/global/homes/g/gsponerr
 
 $(TARBALL):
 	curl -fsSL $(URL) > $(TARBALL)
@@ -13,15 +13,11 @@ $(TARBALL):
 $(SRC): $(TARBALL)
 	mkdir -p $(UNPACK)
 	gzip -dc $(TARBALL) | tar xf - -C $(UNPACK)
-	if [ ! -d $(UNPACK)/AxiCLASS-master ]; then \
-		mv $(UNPACK)/class*/* $(UNPACK)/; \
-	else \
-		mv $(UNPACK)/Axi*/* $(UNPACK)/; \
-		rm -r $(UNPACK)/Makefile; \
-		cp $(HOME)/makefile_class/Makefile $(UNPACK); \
-	fi
-
 	touch $@
+	mv $(UNPACK)/*/* $(UNPACK)/
+	if [ ! -z $(PATCH)] && [ -e $(PATCH) ]; then \
+		cp -r $(PATCH)/* $(UNPACK)/; \
+	fi
 
 $(SRC)/libclass.a: $(SRC)
 	cd $(SRC); make libclass.a
@@ -40,4 +36,3 @@ build: $(SRC)/libclass.a
 install: $(DEST)/lib/libclass.a
 clean:
 	rm -rf $(DEST)
-
