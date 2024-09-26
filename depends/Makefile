@@ -1,7 +1,8 @@
 DEST?=_inst
 URL?=https://github.com/adematti/class_public/archive/refs/tags/v3.2.1b.tar.gz
 #URL?=
-PATCH?=
+PATCH?=foo
+INCLUDE?=include
 
 TARBALL=tmp-class.tar.gz
 UNPACK=tmp-class
@@ -15,22 +16,23 @@ $(SRC): $(TARBALL)
 	gzip -dc $(TARBALL) | tar xf - -C $(UNPACK)
 	touch $@
 	mv $(UNPACK)/*/* $(UNPACK)/
-	if [ ! -z $(PATCH)] && [ -e $(PATCH) ]; then \
-		cp -r $(PATCH)/* $(UNPACK)/; \
-	fi
+	[ -d $(PATCH) ] && cp -r $(PATCH)/* $(UNPACK)/
 
 $(SRC)/libclass.a: $(SRC)
 	cd $(SRC); make libclass.a
 
 $(DEST)/lib/libclass.a: $(SRC)/libclass.a
 	mkdir -p $(DEST)
-	cp -r $(SRC)/include $(DEST)
+	for inc in $(INCLUDE) ; do \
+	  cp -r $(SRC)/$$inc $(DEST) ; \
+	done
 	cp -r $(SRC)/external $(DEST)
 	mkdir -p $(DEST)/lib
 	cp $(SRC)/libclass.a $(DEST)/lib
 	mkdir -p $(DEST)/data
 	cp $(SRC)/*.ini $(SRC)/*.pre $(DEST)/data/
 	rm -rf $(TARBALL) $(UNPACK) $(SRC)
+	rm -rf $(TARBALL)
 
 build: $(SRC)/libclass.a
 install: $(DEST)/lib/libclass.a

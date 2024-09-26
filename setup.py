@@ -26,12 +26,22 @@ def find_branches():
     return find_packages(where=package_basename)
 
 
-def find_url(branch):
+def load_version(branch):
     import importlib
     spec = importlib.util.spec_from_file_location(branch, os.path.join(package_basedir, package_basename, branch, '_version.py'))
     foo = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(foo)
+    return foo
+
+
+def find_url(branch):
+    foo = load_version(branch)
     return foo.url
+
+
+def find_include(branch):
+    foo = load_version(branch)
+    return list(getattr(foo, 'include', ['include']))
 
 
 def build_class(build_dir, branch='base'):
@@ -39,9 +49,8 @@ def build_class(build_dir, branch='base'):
     # latest class version and download link
     url = find_url(branch)
     patch = os.path.join(os.path.join(package_basedir, package_basename, branch, 'patch'))
-    args = (package_basedir, package_basedir, url, patch, os.path.abspath(build_dir))
-    command = 'sh {}/depends/install_class.sh {} {} {} {}'.format(*args)
-
+    args = (package_basedir, url, patch, os.path.abspath(build_dir), ' '.join(find_include(branch)))
+    command = 'cd {}/depends; URL={} PATCH={} DEST={} INCLUDE="{}" make install'.format(*args)
     if os.system(command) != 0:
         raise ValueError('could not build CLASS {}'.format(build_dir))
 
@@ -62,7 +71,9 @@ class custom_build_ext(build_ext):
             build_class(build_dir, branch=branch)
             library_dir = os.path.join(build_dir, 'lib')
             # os.rename(os.path.join(library_dir, 'libclass.a'), os.path.join(library_dir, 'libclass-{}.a'.format(branch)))
-            extension.include_dirs.insert(0, os.path.join(build_dir, 'include'))
+            for include in find_include(branch):
+                extension.include_dirs.insert(0, os.path.join(build_dir, include))
+
             for external in ['heating', 'HyRec2020', 'RecfastCLASS']:
                 extension.include_dirs.insert(0, os.path.join(build_dir, 'external', external))
             extension.library_dirs.insert(0, library_dir)
