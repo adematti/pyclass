@@ -345,9 +345,9 @@ def test_axiclass(show=False):
         plt.show()
 
 
-def test_mochi(show=False):
+def test_mochiclass(show=False):
     #NEW: addition for EDE (Rafaela)
-    from pyclass.mochi import ClassEngine, Background, Fourier
+    from pyclass.mochiclass import ClassEngine, Background, Fourier
 
     params = {'H0': 75.50415, 'omega_cdm': 0.1242302, 'omega_b': 0.02172526, 'tau_reio': 0.05206174, 'A_s': 2.051785e-09, 'n_s': 0.9548171, 'Omega_Lambda': 0, 'Omega_fld': 0,
               'Omega_smg': -1, 'gravity_model': 'brans dicke', 'parameters_smg': [0.7, 50, 1., 1.e-1],
@@ -380,4 +380,4 @@ if __name__ == '__main__':
     test_fourier()
     test_sigma8()
     test_axiclass(show=True)
-    test_mochi(show=True)
+    test_mochiclass(show=True)
