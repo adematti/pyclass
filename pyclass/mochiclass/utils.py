@@ -16,7 +16,7 @@ def get_external_files():
     toret = {'hyrec_path': os.path.join(path, 'HyRec2020') + os.sep,
              'Galli_file': os.path.join(path, 'heating', 'Galli_et_al_2013.dat'),
              'sd_external_path': os.path.join(path, 'distortions') + os.sep,
-             'sBBN file': os.path.join(path, 'bbn', 'sBBN.dat')}
+             'sBBN file': os.path.join(path, 'bbn', 'sBBN_2017.dat')}
     return toret
 
 
