@@ -4,7 +4,7 @@ Taken from https://github.com/nickhand/classylss/blob/master/classylss/__init__.
 """
 
 
-def get_external_files():
+def get_external_files(**kwargs):
     """
     Return the path of external files required for running CLASS.
     They are installed to the package directory, in the ``external`` folder.
@@ -15,8 +15,11 @@ def get_external_files():
     path = os.path.join(path, 'external')
     toret = {'hyrec_path': os.path.join(path, 'HyRec2020') + os.sep,
              'Galli_file': os.path.join(path, 'heating', 'Galli_et_al_2013.dat'),
-             'sd_external_path': os.path.join(path, 'distortions') + os.sep,
-             'sBBN file': os.path.join(path, 'bbn', 'sBBN_2017.dat')}
+              'sd_external_path': os.path.join(path, 'distortions') + os.sep,
+              'sBBN file': os.path.join(path, 'bbn', 'sBBN_2017.dat')}
+    for name in toret:
+        if name in kwargs:
+            toret[name] = _find_file(kwargs[name])
     return toret
 
 

@@ -15,7 +15,6 @@ from libc.math cimport exp, sqrt
 from .cclassy cimport *
 
 from .utils import get_external_files
-_EXTERNAL_FILES = get_external_files()
 
 DEF _Mpc_over_m_ = 3.085677581282e22  #  /**< conversion factor from meters to megaparsecs */
 #/* remark: CAMB uses 3.085678e22: good to know if you want to compare  with high accuracy */
@@ -166,7 +165,7 @@ def gridarray(iargs=[0], dtype=np.float64):
 
 def _compile_params(params):
     r"""Build up parameter dictionary: removes ``None``, enforce ``output`` (calculation being determined by :meth:`ClassEngine.compute`)."""
-    params = {**_EXTERNAL_FILES, **params}
+    params = {**params, **get_external_files(**params)}
     if 'verbose' in params:
         params.pop('verbose')
         verbose = params['verbose']

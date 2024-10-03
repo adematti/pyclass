@@ -300,7 +300,6 @@ def test_rs_drag():
               'tau_reio': 0.05853273, 'h': 0.6766846, 'N_ur': 2.0328, 'm_ncdm': 0.05999991930682943, 'lensing': 'no', 'z_max_pk': 10.0,
               'P_k_max_h/Mpc': 10.0, 'l_max_scalars': 2500, 'N_ncdm': 1, 'T_ncdm': 0.71611, 'recombination': 'HyRec', 'output': 'dTk, vTk, tCl, pCl, lCl, mPk, nCl'}
     cosmo = ClassEngine(params)
-    Fourier(cosmo)
     ba = Background(cosmo)
     th = Thermodynamics(cosmo)
     print(th.rs_drag / ba.h)
@@ -317,10 +316,16 @@ def test_rs_drag():
               'h': 0.6766846, 'N_ur': 2.0328, 'm_ncdm': [0.05999991930682943], 'lensing': 'no', 'z_max_pk': 10.0, 'P_k_max_h/Mpc': 10.0,
               'l_max_scalars': 2500, 'N_ncdm': 1, 'T_ncdm': [0.71611], 'recombination': 'HyRec'}
     cosmo = ClassEngine(params)
-    fo = Fourier(cosmo)
     ba = Background(cosmo)
     th = Thermodynamics(cosmo)
     print(th.rs_drag / ba.h)
+
+    params['sBBN file'] = 'bbn/sBBN.dat'
+    cosmo = ClassEngine(params)
+    ba2 = Background(cosmo)
+    th2 = Thermodynamics(cosmo)
+    assert not np.allclose(th2.rs_drag, th.rs_drag)
+    print(th2.rs_drag / ba2.h, th2.rs_drag / th.rs_drag)
 
     from classy import Class
 
@@ -370,13 +375,23 @@ def test_cl():
     print(cosmo.lensed_cl()['tt'] / cl)
 
     params = {'A_s': 2.1266796357944756e-09, 'n_s': 0.9657119, 'H0': 70.0, 'omega_b': 0.02246306, 'omega_cdm': 0.1184775, 'tau_reio': 0.0544, 'N_ncdm': 0, 'N_ur': 3.044, 'output': 'tCl pCl lCl', 'non_linear': 'hmcode', 'l_max_scalars': 2508, 'lensing': 'yes'}
+
+    #params = {#'hyrec_path': '/local/home/adematti/Bureau/DESI/NERSC/cosmodesi/pyclass/pyclass/base/external/HyRec2020/',
+    #          #'Galli_file': '/local/home/adematti/Bureau/DESI/NERSC/cosmodesi/pyclass/pyclass/base/external/heating/Galli_et_al_2013.dat',
+    #          #'sd_external_path': '/local/home/adematti/Bureau/DESI/NERSC/cosmodesi/pyclass/pyclass/base/external/distortions/',
+    #          #'sBBN file': '/local/home/adematti/Bureau/DESI/NERSC/cosmodesi/pyclass/pyclass/base/external/bbn/sBBN_2017.dat',
+    #          'A_s': '2.126679635794475617e-09', 'n_s': '9.657118999999999565e-01', 'H0': '7.000000000000000000e+01',
+    #          'omega_b': '2.246305999999999997e-02', 'omega_cdm': '1.184774999999999995e-01', 'tau_reio': '5.439999999999999697e-02',
+    #          'N_ncdm': '0.000000000000000000e+00', 'N_ur': '3.044000000000000039e+00', 'output': 'tCl lCl pCl', 'non_linear': 'hmcode',
+    #          'l_max_scalars': '2.508000000000000000e+03', 'lensing': 'yes', 'reionization_width': '0.5', 'A_L': '1.0', 'modes': 's'}
+
     cosmo = ClassEngine(params)
     cl = Harmonic(cosmo).lensed_cl()['tt']
     from classy import Class
     cosmo = Class()
     cosmo.set(**params)
     cosmo.compute()
-    print(cosmo.lensed_cl()['tt'] / cl)
+    print(np.abs(cosmo.lensed_cl()['tt'][2:] / cl[2:] - 1.).max())
 
 
 def test_axiclass(show=False):
