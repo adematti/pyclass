@@ -1,15 +1,10 @@
 DEST?=_inst
-URL?=https://github.com/adematti/class_public/archive/refs/tags/v3.2.1b.tar.gz
-#URL?=
 PATCH?=foo
 INCLUDE?=include
 
-TARBALL=tmp-class.tar.gz
+TARBALL?=tmp-class.tar.gz
 UNPACK=tmp-class
 SRC=$(UNPACK)
-
-$(TARBALL):
-	curl -fsSL $(URL) > $(TARBALL)
 
 $(SRC): $(TARBALL)
 	mkdir -p $(UNPACK)
