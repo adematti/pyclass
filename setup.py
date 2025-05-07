@@ -23,7 +23,11 @@ version = _version.version
 
 
 def find_branches():
-    return find_packages(where=package_basename)
+    branches = find_packages(where=package_basename)
+    select = os.getenv('PYCLASS_BRANCHES', None)
+    if select is not None:
+        branches = [branch for branch in branches if branch in select]
+    return branches
 
 
 def load_version(branch):

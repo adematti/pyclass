@@ -582,53 +582,38 @@ cdef class Background:
             return self.ba.K / self.h**2
 
 
-    #NEW: addition for EDE (Rafaela Gsponer)
+    #NEW: addition for EDE (Arnaud)
     #starts here
 
-    property f_ede:
+    property fEDE:
         r"""fractional contribution of EDE"""
         def __get__(self):
-            return self.ba.f_ede
-
-    property f_ede_peak:
-        r"""TODO"""
-        def __get__(self):
-            return self.ba.f_ede_peak
-
-    property omega_axion:
-        r"""Density parameter for axion-like early dark energy component."""
-        def __get__(self):
-            return self.ba.omega_axion
+            return self.ba.fEDE
 
     property z_c:
         r"""Critical redshift for early dark energy."""
         def __get__(self):
-            return 10**self.ba.log10_z_c
+            return self.ba.z_c
 
     property log10_z_c:
         r"""Critical redshift for early dark energy (in log space)."""
         def __get__(self):
-            return self.ba.log10_z_c
+            return self.ba.log10z_c
+
+    property log10f_scf:
+        r"""Early dark energy decay constant."""
+        def __get__(self):
+            return self.ba.log10f_scf
+
+    property log10m_scf:
+        r"""Early dark energy effective mass."""
+        def __get__(self):
+            return self.ba.log10m_scf
 
     property thetai_scf:
         r"""Initial displacement for early dark energy scalar field."""
         def __get__(self):
-            return self.ba.scf_parameters[0]
-
-    property log10_f_axion:
-        r"""Early dark energy decay constant."""
-        def __get__(self):
-            return self.ba.log10_f_axion
-
-    property log10_m_axion:
-        r"""Early dark energy effective mass."""
-        def __get__(self):
-            return self.ba.log10_m_axion
-
-    property n_axion_security:
-        def __get__(self):
-            return self.ba.n_axion_security
-
+            return self.ba.thetai_scf
 
     #end
 
@@ -1439,20 +1424,6 @@ cdef class Perturbations:
         r"""The input parameter specifying the maximum redshift measured for power spectra, unitless."""
         def __get__(self):
             return self.pt.z_max_pk
-
-    #NEW: addition for EDE (Rafaela)
-    #start
-    property phase_shift:
-        r"""TODO"""
-        def __get__(self):
-            return self.pt.phase_shift
-
-    property amplitude:
-        r"""TODO"""
-        def __get__(self):
-            return self.pt.amplitude
-
-    #end
 
     property gauge:
         r"""The gauge name as a string, either 'newtonian' or 'synchronous'."""

@@ -123,87 +123,13 @@ cdef extern from "class.h":
         double K
         int bt_size
 
-        #NEW: addition for EDE (Rafaela) (maybe also crosscheck with input.c)
-        #start
-        double f_ede
-        double m_scf
-        double f_axion
-        double Omega_axion_ac
-        double log10_axion_ac
-        double log10_z_c
-        double log10_f_axion
-        double log10_m_axion
-        double omega_axion
-        double phi_scf_c
-        double phi_ini_scf
-        double V0_phi2n
-        double f_ede_peak
-        double a_peak
-        double Omega0_axion
-        double Omega0_scf
-        double Omega_EDE
-
-        double n_axion_security
-        double security_small_Omega_scf
-        short scf_evolve_as_fluid
-        double threshold_scf_fluid_m_over_H
-        short attractor_ic_scf
-        int scf_tuning_index
-        double n_axion
-        short scf_evolve_like_axionCAMB
-        short scf_has_perturbations
-        short cs2_is_wn
-
-        # wanted to use these three parameters
-        # but seems like there are nowhere to be found in the class code (besides declaration)
-
-        # double precision_newton_method_x
-        # double precision_newton_method_F
-        # double adptative_stepsize
-
-        # additional parameters but doesn't seem necessary
-        # to include them atm
-
-#         double phi_ini_scf
-#         double phi_prime_ini_scf
-#         enum scf_pot scf_potential
-#         int scf_parameters_size
-#         double beta_scf
-#         double alpha_squared
-#         double power_of_mu
-#         double V0_phi2n
-#         double a_c
-#         double log10_fraction_axion_ac
-#         double Omega_axion_ac
-#         double zc_is_zeq
-#         double phi_scf_c
-#         double w_scf
-#         double cs2_scf
-
-#         short scf_kg_eq
-#         short kg_fld_switch
-#         short scf_fluid_eq
-#         short loop_over_background_for_closure_relation
-#         short include_scf_in_growth_factor
-
-#         double nu_fld
-#         double n_pheno_axion
-#         double omega_axion
-#         double Theta_initial_fld
-#         double m_fld
-#         double alpha_fld
-#         double Omega_fld_ac
-#         double n_cap_infinity
-#         double w_fld_f
-#         double w_fld_i
-#         double log10_a_c
-#         double a_peak
-#         double cs2_fld
-
-        double * scf_parameters
-
-        #end
-
+        #NEW: addition for EDE (Arnaud)
+        double fEDE
+        double z_c
+        double log10z_c
+        double log10m_scf
+        double log10f_scf
+        double thetai_scf
 
     cdef struct thermodynamics:
         ErrorMsg error_message
@@ -363,7 +289,7 @@ cdef extern from "class.h":
         int l_scalar_max
         int l_lss_max
 
-        #NEW: addition for EDE (Rafaela Gsponer)
+        #NEW: addition for EDE (Rafaela)
         #start
 
         double phase_shift
