@@ -419,26 +419,20 @@ def test_axiclass(show=False):
 def test_edeclass(show=False):
     #NEW: addition for EDE
     from pyclass.edeclass import ClassEngine, Background, Fourier
-    for fede in [0.001, 0.05, 0.132, 0.15]:
-        '''
-        params = {'omega_b': 0.02251, 'omega_cdm': 0.1320, 'H0': 72.81, 'tau_reio': 0.068,
-                  'attractor_ic_scf': 'no', 'scf_parameters': [1, 1, 1, 1, 1, 0.0],
-                  'log10f_scf': 26., 'm_scf': 1.e-26, 'thetai_scf': 2.6, 'n_scf': 3,
-                  'CC_scf': 1, 'scf_tuning_index': 3} #, 'fEDE': fede, 'log10z_c': 3.12}
-        '''
-        params = {'omega_b': 0.02251, 'omega_cdm': 0.1320, 'H0': 72.81, 'tau_reio': 0.068,
-                  'log10f_scf': 26., 'm_scf': 1.e-26, 'thetai_scf': 2.6, 'n_scf': 3, 'CC_scf': 1}
-        cosmo = ClassEngine(params)
-        ba = Background(cosmo)
-        fo = Fourier(cosmo)
-        k = np.logspace(-4, np.log10(3), 1000)
-        h = ba.h
-        pk = fo.pk_kz(k * h, 0) * h**3
-        if show:
-            from matplotlib import pyplot as plt
-            plt.loglog(k, pk, label=r'$f_\mathrm{{EDE}} = {:.4f}$'.format(fede))
+    params = {'Omega_Lambda': 0, 'Omega_fld': 0, 'Omega_scf': -1, 'omega_b': 0.02251, 'omega_cdm': 0.1320, 'H0': 72.81, 'tau_reio': 0.068,
+                'attractor_ic_scf': 'no', 'scf_parameters': [1, 1, 1, 1, 1, 0.0],
+                'log10f_scf': 26., 'm_scf': 1.e-26, 'thetai_scf': 2.6, 'n_scf': 3,
+                'CC_scf': 1, 'scf_tuning_index': 3}
+    cosmo = ClassEngine(params)
+    ba = Background(cosmo)
+    fo = Fourier(cosmo)
+    k = np.logspace(-4, np.log10(3), 1000)
+    h = ba.h
+    pk = fo.pk_kz(k * h, 0) * h**3
     if show:
-        plt.legend()
+        from matplotlib import pyplot as plt
+        plt.loglog(k, pk)
+    if show:
         plt.xlabel(r'$k$ $[h/\mathrm{Mpc}]$')
         plt.ylabel(r'$P(k)$ $[(\mathrm{Mpc}/h)^3]$')
         plt.show()
@@ -503,5 +497,5 @@ if __name__ == '__main__':
     test_sigma8()
     test_axiclass(show=True)
     test_mochiclass(show=True)
-    test_negnuclass(show=True)
+    #test_negnuclass(show=True)
     test_edeclass(show=True)
