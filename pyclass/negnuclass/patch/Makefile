@@ -22,7 +22,7 @@ vpath .base build
 # LDFLAG=-lomp
 
 # your C compiler:
-CC ?= gcc
+CC ?= gcc -std=gnu17
 #CC = icc
 #CC = pgcc
 
