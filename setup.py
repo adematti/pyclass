@@ -146,11 +146,13 @@ class custom_build_ext(build_ext):
                 extension.library_dirs.insert(0, library_dir)
                 extension.libraries.insert(0, 'class')
                 # extension.include_dirs = self.include_dirs + extension.include_dirs
-
+                dest_dir = os.path.join(self.build_lib, package_basename, branch)
+                if self.inplace:  # for pip install --editable (which does not use develop)
+                    dest_dir = os.path.join(package_basedir, package_basename, branch)
                 # copy data files from temp to pyclass package directory
                 for name in ['external', 'data']:
-                    shutil.rmtree(os.path.join(self.build_lib, package_basename, branch, name), ignore_errors=True)
-                    shutil.copytree(os.path.join(self.build_temp, branch, name), os.path.join(self.build_lib, package_basename, branch, name))
+                    shutil.rmtree(os.path.join(dest_dir, name), ignore_errors=True)
+                    shutil.copytree(os.path.join(build_dir, name), os.path.join(dest_dir, name))
             else:
                 nobuild.append(extension)
         for extension in nobuild:
