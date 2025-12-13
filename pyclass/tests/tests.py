@@ -497,5 +497,5 @@ if __name__ == '__main__':
     test_sigma8()
     test_axiclass(show=True)
     test_mochiclass(show=True)
-    #test_negnuclass(show=True)
+    test_negnuclass(show=True)
     test_edeclass(show=True)

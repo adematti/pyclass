@@ -1,7 +1,3 @@
-include pyclass/*.pyx
-include pyclass/*.pxd
-
-include depends/install_class.sh
 include depends/Makefile
 include README.rst
 include LICENSE

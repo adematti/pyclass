@@ -14,6 +14,13 @@ DEF _ARGUMENT_LENGTH_MAX_ = 1024
 DEF _ERRORMSGSIZE_ = 2048
 
 
+cdef extern from *:
+    """
+    /* Otherwise quadrature.h breaks with numpy >= 2 */
+    #undef I
+    """
+
+
 cdef extern from "class.h":
 
     cdef char[10] _VERSION_

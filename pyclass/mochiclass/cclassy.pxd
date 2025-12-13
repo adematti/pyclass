@@ -13,11 +13,15 @@ DEF _LINE_LENGTH_MAX_ = 1024
 DEF _ARGUMENT_LENGTH_MAX_ = 1024
 DEF _ERRORMSGSIZE_ = 2048
 
+
 cdef extern from *:
     """
     /* Otherwise quadrature.h breaks with numpy >= 2 */
     #undef I
+    /* Otherwise rootfinder.h breaks with numpy >= 2 */
+    #undef complex
     """
+
 
 cdef extern from "class.h":
 
