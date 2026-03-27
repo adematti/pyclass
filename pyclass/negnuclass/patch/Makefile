@@ -22,7 +22,7 @@ vpath .base build
 # LDFLAG=-lomp
 
 # your C compiler:
-CC ?= gcc -std=gnu17
+CC ?= gcc
 #CC = icc
 #CC = pgcc
 
@@ -46,7 +46,7 @@ OMPFLAG ?= -fopenmp
 #OMPFLAG   = -mp -mp=nonuma -mp=allcores -g
 #OMPFLAG   = -openmp
 
-CCFLAG ?= -fPIC
+CCFLAG ?= -fPIC -std=gnu17
 LDFLAG ?= -fPIC
 
 # all other compilation flags
