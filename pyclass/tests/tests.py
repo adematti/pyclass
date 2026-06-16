@@ -66,7 +66,7 @@ def test_background():
         cosmo = ClassEngine(params)
         ba = Background(cosmo)
 
-        for name in ['rho_cdm', 'rho_dcdm', 'rho_ncdm_tot', 'p_ncdm_tot', 'Omega_m', 'Omega_pncdm_tot', 'time', 'conformal_time', 'hubble_function', 'comoving_radial_distance', 'comoving_angular_distance', 'growth_factor', 'growth_rate']:
+        for name in ['rho_cdm', 'rho_dcdm', 'rho_ncdm_tot', 'p_ncdm_tot', 'Omega_m', 'Omega_pncdm_tot', 'time', 'conformal_time', 'hubble_function', 'comoving_radial_distance', 'comoving_transverse_distance', 'growth_factor', 'growth_rate']:
             func = getattr(ba, name)
             assert func(0.1).shape == ()
             assert func([]).shape == (0,)

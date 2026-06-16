@@ -1051,13 +1051,15 @@ cdef class Background:
         return self._get_z(z, self.ba.index_bg_ang_distance) * self.ba.h
 
     @flatarray()
-    def comoving_angular_distance(self, z):
+    def comoving_transverse_distance(self, z):
         r"""
         Comoving angular distance, in :math:`\mathrm{Mpc}/h`.
 
         See eq. 16 of `astro-ph/9905116 <https://arxiv.org/abs/astro-ph/9905116>`_ for :math:`D_{M}(z)`.
         """
         return self.angular_diameter_distance(z) * (1. + z)
+
+    comoving_angular_distance = comoving_transverse_distance  # backward compatibility
 
     @flatarray(iargs=[0, 1])
     def angular_diameter_distance_2(self, z1, z2):
