@@ -83,6 +83,7 @@ cdef extern from "class.h":
         int index_bg_ang_distance
         int index_bg_lum_distance
         int index_bg_conf_distance
+        int index_bg_rs
         int index_bg_time
         int index_bg_H
         int index_bg_H_prime

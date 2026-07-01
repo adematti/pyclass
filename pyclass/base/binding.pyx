@@ -965,6 +965,11 @@ cdef class Background:
         return self._get_z(z, self.ba.index_bg_conf_distance) * self.ba.h
 
     @flatarray()
+    def comoving_sound_horizon(self, z):
+        r"""Comoving sound horizon at redshift ``z``, in :math:`\mathrm{Mpc}/h`."""
+        return self._get_z(z, self.ba.index_bg_rs) * self.ba.h
+
+    @flatarray()
     def conformal_time(self, z):
         r"""Conformal time, in :math:`\mathrm{Gy}`."""
         return (self.ba.conformal_age - self._get_z(z, self.ba.index_bg_conf_distance)) / _Gyr_over_Mpc_
@@ -1098,7 +1103,6 @@ cdef class Thermodynamics:
     cdef ClassEngine engine
     cdef thermodynamics * th
     cdef background * ba
-
     def __init__(self, ClassEngine engine):
         r"""
         Initialise :class:`Thermodynamics`.
