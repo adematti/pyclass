@@ -481,6 +481,28 @@ def test_negnuclass(show=False):
         plt.ylabel(r'$P(k)$ $[(\mathrm{Mpc}/h)^3]$')
         plt.show()
 
+def test_decnuclass(show=False):
+    #NEW: addition for EDE (Rafaela)
+    from pyclass.decnuclass import ClassEngine, Background, Fourier
+
+    params = {'H0': 75.50415, 'omega_cdm': 0.1242302, 'omega_b': 0.02172526, 'tau_reio': 0.05206174, 'A_s': 2.051785e-09, 'n_s': 0.9548171, 'N_ncdm': 1, 'm_ncdm': 0.2, 'deg_ncdm': 3, 'Gamma_ncdm': 1e4}
+    pks = []
+    for Gamma_ncdm in [1e2, 1e4]:
+        params.update(Gamma_ncdm=[Gamma_ncdm])
+        cosmo = ClassEngine(params)
+        ba = Background(cosmo)
+        fo = Fourier(cosmo)
+        k = np.logspace(-4, np.log10(3), 1000)
+        h = ba.h
+        pk = fo.pk_kz(k * h, 0, of='theta_cb') * h**3
+        pks.append(pk)
+    if show:
+        from matplotlib import pyplot as plt
+        for pk in pks:
+            plt.loglog(k, pk)
+        plt.xlabel(r'$k$ $[h/\mathrm{Mpc}]$')
+        plt.ylabel(r'$P(k)$ $[(\mathrm{Mpc}/h)^3]$')
+        plt.show()
 
 def test_dsclass():
     #NEW: addition for IDE (karimpsi22)
