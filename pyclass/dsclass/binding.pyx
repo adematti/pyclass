@@ -1675,7 +1675,7 @@ cdef class Transfer:
         for index_ic, ic_key in enumerate(ic_keys):
             array = np.empty((k_size, tau_size), dtype=[(name, np.float64) for name in ['k', 'z', 'tau']] + [(str(name), np.float64) for name in names])
             for index_tp, name in zip(indices, names):
-                array[name] = <double[:k_size, :tau_size]> sources[index_md][index_ic * tp_size + index_tp]
+                array[name] = np.asarray(<double[:tau_size, :k_size]> sources[index_md][index_ic * tp_size + index_tp]).T
             array['k'] = <double[:k_size, :1]> k
             array['k'] /= self.ba.h
             array['z'] = z
